@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:otakuplanner/entryScreens/loginPage.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/dashboard.dart';
+import 'package:provider/provider.dart';
 import 'package:splash_view/splash_view.dart';
 
-
-
-
-
 void main() {
-  runApp(MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -21,19 +26,19 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Thriller',
-
       theme: ThemeData(
         canvasColor: Colors.white,
-        primaryColor: Colors.white,
+        primaryColor: Colors.white, 
         scaffoldBackgroundColor: Color.fromRGBO(252, 242, 232, 1),
         fontFamily: "Poppins",
       ),
-
-      
       home: SplashView(
         logo: Image.asset("assets/images/otaku.jpg"),
         done: Done(Login()), 
       ),
+      routes: {
+        '/dashboard': (context) => Dashboard(),
+      },
     );
   }
 }

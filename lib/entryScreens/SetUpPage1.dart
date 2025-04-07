@@ -31,7 +31,7 @@ class _SetupPage1State extends State<SetupPage1> {
             children: [
               Center(
                 child: Text(
-                  "Step 1 of 4",
+                  "Step 1 of 2",
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.bold,
@@ -227,3 +227,7 @@ class _SetupPage1State extends State<SetupPage1> {
     );
   }
 }
+
+
+
+           

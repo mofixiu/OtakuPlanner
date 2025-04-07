@@ -3,7 +3,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/entryScreens/SetUpPage1.dart';
 import 'package:otakuplanner/entryScreens/forgotPassword.dart';
 import 'package:otakuplanner/entryScreens/signup.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
+import 'package:provider/provider.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -13,6 +15,20 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
+  void login1() {
+ String username = _usernameController.text.trim();
+  if (username.isNotEmpty) {
+    // sav>e the username in the provider
+    Provider.of<UserProvider>(context, listen: false).setUsername(username);
+
+    // navigate to setup page
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SetupPage1()),
+    );
+  }  
+}
+
     void forgot() {
     Navigator.push(
       context,
@@ -28,6 +44,8 @@ class _LoginState extends State<Login> {
       context,
       MaterialPageRoute(builder: (context) => const SetupPage1()),
     );}
+    final TextEditingController _usernameController = TextEditingController();
+
     
   @override
   Widget build(BuildContext context) {
@@ -77,8 +95,10 @@ class _LoginState extends State<Login> {
                   borderRadius: BorderRadius.circular(1.0),
                 ),
                 child: TextField(
+                    controller: _usernameController,
+
                   decoration: InputDecoration(
-                    hintText: "Email Address",
+                    hintText: "Email Address or Username",
                     hintStyle: TextStyle(color: Colors.grey.shade600),
                     filled: false,
                     fillColor: Colors.white,
@@ -156,7 +176,7 @@ class _LoginState extends State<Login> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
               CustomButton(
-                ontap: login,
+                ontap: login1,
                 data: "LOG IN",
                 textcolor: Colors.white,
                 backgroundcolor: Color(0xFF1E293B),
