@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/profile.dart';
 import 'package:otakuplanner/screens/task_dialog.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
@@ -32,7 +33,7 @@ class Task {
 }
 
 class _DashboardState extends State<Dashboard> {
-  final int _currentIndex = 1;
+  final int _currentIndex = 0;
   bool checked1 = false;
   bool checked2 = false;
   bool checked3 = false;
@@ -75,6 +76,13 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  void profile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const Profile()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
@@ -84,7 +92,8 @@ class _DashboardState extends State<Dashboard> {
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
 
         centerTitle: false,
-        backgroundColor: Color.fromRGBO(252, 242, 232, 1),
+        backgroundColor: Color.fromRGBO(255, 249, 233, 1),
+
         elevation: 2,
         scrolledUnderElevation: 2,
         title: Text(
@@ -96,9 +105,12 @@ class _DashboardState extends State<Dashboard> {
           ),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 15.0),
-            child: CircleAvatar(child: Icon(Icons.person)),
+          GestureDetector(
+            onTap: profile,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 15.0),
+              child: CircleAvatar(child: Icon(Icons.person)),
+            ),
           ),
         ],
       ),
@@ -110,27 +122,51 @@ class _DashboardState extends State<Dashboard> {
             children: [
               Container(
                 width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height * 0.1,
+                height: MediaQuery.of(context).size.height * 0.12,
                 decoration: BoxDecoration(
                   color: Color.fromRGBO(252, 242, 232, 1),
                   borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: Colors.black, width: 0.4),
-                ),
-                child: Column(
-                  children: [
-                    Center(
-                      child: Text(
-                        'Welcome back, $username!',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        "Let's make today productive and achieve \nyour goals",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                  border: Border(
+                    left: BorderSide(color: Colors.black, width: 0.4),
+                    right: BorderSide(color: Colors.black, width: 0.4),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
                     ),
                   ],
+                ),
+
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10.0, bottom: 10),
+                  child: Column(
+                    children: [
+                      Center(
+                        child: Text(
+                          'Welcome back, ${username[0].toUpperCase()}${username.substring(1).toLowerCase()}!',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          "Let's make today productive and",
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          "achieve your goals",
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
@@ -140,12 +176,23 @@ class _DashboardState extends State<Dashboard> {
                 child: Row(
                   children: [
                     Container(
-                      height: MediaQuery.of(context).size.height * 0.22,
-                      width: MediaQuery.of(context).size.width / 2 - 50,
+                      height: MediaQuery.of(context).size.height * 0.16,
+                      width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
                         color: Color.fromRGBO(252, 242, 232, 1),
-                        border: Border.all(color: Colors.black, width: 0.4),
+                        border: Border(
+                          left: BorderSide(color: Colors.black, width: 0.4),
+                          right: BorderSide(color: Colors.black, width: 0.4),
+                        ),
                         borderRadius: BorderRadius.circular(5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -158,7 +205,7 @@ class _DashboardState extends State<Dashboard> {
                                 Text(
                                   "Today's\nTasks",
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -169,21 +216,26 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.005,
                             ),
                             Text(
                               "3",
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.005,
                             ),
+
                             Text("1 completed", style: TextStyle(fontSize: 15)),
+
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.013,
                             ),
 
                             StepProgressIndicator(
@@ -214,12 +266,23 @@ class _DashboardState extends State<Dashboard> {
                     ),
                     SizedBox(width: MediaQuery.of(context).size.width * 0.02),
                     Container(
-                      height: MediaQuery.of(context).size.height * 0.22,
-                      width: MediaQuery.of(context).size.width / 2 - 50,
+                      height: MediaQuery.of(context).size.height * 0.16,
+                      width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
                         color: Color.fromRGBO(252, 242, 232, 1),
-                        border: Border.all(color: Colors.black, width: 0.4),
+                        border: Border(
+                          left: BorderSide(color: Colors.black, width: 0.4),
+                          right: BorderSide(color: Colors.black, width: 0.4),
+                        ),
                         borderRadius: BorderRadius.circular(5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -232,10 +295,11 @@ class _DashboardState extends State<Dashboard> {
                                 Text(
                                   "Current\nStreak",
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+
                                 FaIcon(
                                   FontAwesomeIcons.clock,
                                   color: Colors.green,
@@ -243,21 +307,25 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.005,
                             ),
+
                             Text(
-                              "3",
+                              "7 days",
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.005,
                             ),
                             Text("1 completed", style: TextStyle(fontSize: 15)),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.013,
                             ),
                             StepProgressIndicator(
                               totalSteps: 100,
@@ -287,12 +355,23 @@ class _DashboardState extends State<Dashboard> {
                     ),
                     SizedBox(width: MediaQuery.of(context).size.width * 0.02),
                     Container(
-                      height: MediaQuery.of(context).size.height * 0.22,
-                      width: MediaQuery.of(context).size.width / 2 - 50,
+                      height: MediaQuery.of(context).size.height * 0.165,
+                      width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
                         color: Color.fromRGBO(252, 242, 232, 1),
-                        border: Border.all(color: Colors.black, width: 0.4),
+                        border: Border(
+                          left: BorderSide(color: Colors.black, width: 0.4),
+                          right: BorderSide(color: Colors.black, width: 0.4),
+                        ),
                         borderRadius: BorderRadius.circular(5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -305,7 +384,7 @@ class _DashboardState extends State<Dashboard> {
                                 Text(
                                   "Achievements",
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -318,23 +397,28 @@ class _DashboardState extends State<Dashboard> {
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.03,
                             ),
+
                             Text(
                               "3",
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.04,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.007,
                             ),
+
                             Text(
                               "6 more to unlock",
                               style: TextStyle(fontSize: 15),
                             ),
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.02,
+                              height:
+                                  MediaQuery.of(context).size.height * 0.013,
                             ),
+
                             StepProgressIndicator(
                               totalSteps: 100,
                               currentStep: 74,
@@ -378,7 +462,7 @@ class _DashboardState extends State<Dashboard> {
                     ontap: _showAddTaskDialog,
                     data: "+",
                     textcolor: Colors.white,
-                    backgroundcolor: Colors.deepPurple,
+                    backgroundcolor: Color(0xFF1E293B),
                     width: 40,
                     height: 30,
                   ),
@@ -388,7 +472,6 @@ class _DashboardState extends State<Dashboard> {
               ...tasks.asMap().entries.map((entry) {
                 int index = entry.key;
                 Task task = entry.value;
-
                 return TaskCard(
                   title: task.title,
                   category: task.category,

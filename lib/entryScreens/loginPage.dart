@@ -92,7 +92,7 @@ class _LoginState extends State<Login> {
                 height: 45,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(1.0),
+                  borderRadius: BorderRadius.circular(5.0),
                 ),
                 child: TextField(
                     controller: _usernameController,
@@ -103,7 +103,7 @@ class _LoginState extends State<Login> {
                     filled: false,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(1.0),
+                      borderRadius: BorderRadius.circular(5.0),
                       borderSide: BorderSide(
                         color: Color.fromRGBO(252, 242, 232, 1),
                       ),
@@ -115,7 +115,7 @@ class _LoginState extends State<Login> {
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(1.0),
+                      borderRadius: BorderRadius.circular(5.0),
                       borderSide: BorderSide(
                         color: Color(0xFF1E293B),
                         width: 1.5,
@@ -130,7 +130,7 @@ class _LoginState extends State<Login> {
                 height: 45,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(1.0),
+                  borderRadius: BorderRadius.circular(5.0),
                 ),
                 child: TextField(
                   obscureText: true,
@@ -153,13 +153,13 @@ class _LoginState extends State<Login> {
                     fillColor: Colors.white12,
 
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(1.0),
+                      borderRadius: BorderRadius.circular(5.0),
                       borderSide: BorderSide(
                         color: Color.fromRGBO(252, 242, 232, 1),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(1.0),
+                      borderRadius: BorderRadius.circular(5.0),
                       borderSide: BorderSide(
                         color: Color.fromRGBO(252, 242, 232, 1),
                       ),
@@ -219,7 +219,7 @@ class _LoginState extends State<Login> {
                     // margin: EdgeInsets.symmetric(horizontal: 5),
                     decoration: BoxDecoration(
                       color: Color.fromRGBO(252, 242, 232, 1),
-                      border: Border.all(color: Colors.grey.shade600, width: 0.5),
+                      border: Border.all(color: Colors.grey.shade600, width: 0.7),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Padding(
