@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/entryScreens/SetUpPage2.dart';
+import 'package:otakuplanner/screens/dashboard.dart';
 
 class SetupPage1 extends StatefulWidget {
   const SetupPage1({super.key});
@@ -9,10 +10,16 @@ class SetupPage1 extends StatefulWidget {
 }
 
 class _SetupPage1State extends State<SetupPage1> {
-  void next() {
+  void animenext() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const Setuppage2()),
+    );
+  }
+    void normalnext() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const Dashboard()),
     );
   }
 
@@ -68,7 +75,7 @@ class _SetupPage1State extends State<SetupPage1> {
               ),
 
               GestureDetector(
-                onTap: next,
+                onTap: animenext,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -144,7 +151,7 @@ class _SetupPage1State extends State<SetupPage1> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
               GestureDetector(
-                onTap: next,
+                onTap: normalnext,
 
                 child: Stack(
                   alignment: Alignment.center,

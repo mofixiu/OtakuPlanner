@@ -7,7 +7,7 @@ class TaskCard extends StatelessWidget {
   final String time;
   final bool isChecked;
   final ValueChanged<bool?> onChanged;
-    final IconData? icon;
+  final IconData? icon;
 
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -19,7 +19,7 @@ class TaskCard extends StatelessWidget {
     required this.time,
     required this.isChecked,
     required this.onChanged,
-     this.icon,
+    this.icon,
 
     required this.onEdit,
     required this.onDelete,
@@ -47,31 +47,31 @@ class TaskCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Checkbox(
-                value: isChecked,
-                onChanged: onChanged,
-              ),
+              Checkbox(value: isChecked, onChanged: onChanged),
               Expanded(
                 child: Text(
-  title,
-  style: TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w500,
-    decoration: isChecked ? TextDecoration.lineThrough : TextDecoration.none,
-    color: isChecked ? Colors.grey : Colors.black,
-  ),
-  overflow: TextOverflow.ellipsis,
-),
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    decoration:
+                        isChecked
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                    color: isChecked ? Colors.grey : Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
           SizedBox(height: 4),
           Container(
-              margin: EdgeInsets.symmetric(horizontal: 50,), // Add margin here
+            margin: EdgeInsets.symmetric(horizontal: 50), // Add margin here
 
             child: Row(
               children: [
-            FaIcon(icon,size: 15,), // dynamic icon
+                FaIcon(icon, size: 15), // dynamic icon
                 SizedBox(width: 6),
                 Text(
                   category,
@@ -85,18 +85,32 @@ class TaskCard extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 2),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               GestureDetector(
                 onTap: onEdit,
-                child: Icon(FontAwesomeIcons.pen, size: 14, color: Colors.grey[600]),
+                child: CircleAvatar(
+                  backgroundColor: Colors.grey.shade100,
+                  child: Icon(
+                    FontAwesomeIcons.pen,
+                    size: 19,
+                    color: Colors.grey[600],
+                  ),
+                ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 10),
               GestureDetector(
                 onTap: onDelete,
-                child: Icon(FontAwesomeIcons.trash, size: 14, color: Colors.grey[600]),
+                child: CircleAvatar(
+                  backgroundColor: Colors.grey.shade100,
+                  child: Icon(
+                    FontAwesomeIcons.trash,
+                    size: 19,
+                    color: Colors.red,
+                  ),
+                ),
               ),
             ],
           ),
