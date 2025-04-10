@@ -29,7 +29,14 @@ class _TasksState extends State<Tasks> {
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
-    final filteredTasks = taskProvider.getTasksByCategory(_selectedCategory);
+
+    // Fetch all tasks
+    final allTasks = taskProvider.tasks.values.expand((tasks) => tasks).toList();
+
+    // Filter tasks by the selected category
+    final filteredTasks = _selectedCategory == "All"
+        ? allTasks
+        : allTasks.where((task) => task.category == _selectedCategory).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -57,28 +64,33 @@ class _TasksState extends State<Tasks> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.only(top:22.0,left: 10,right: 10,bottom: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "My Tasks",
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-            CustomButton(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "My Tasks",
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                  CustomButton(
               ontap: () {},
               data: "+ Automate Task",
               textcolor: Colors.white,
               backgroundcolor: Color(0xFF1E293B),
-              width: MediaQuery.of(context).size.width,
+              width: 150,
               height: 40,
             ),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+              ],
+            ),
+          
+            SizedBox(height: MediaQuery.of(context).size.height * 0.03),
             Wrap(
               spacing: 8.0, // Horizontal spacing between items
               runSpacing: 8.0, // Vertical spacing between rows
