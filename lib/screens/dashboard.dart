@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/profile.dart';
 import 'package:otakuplanner/screens/task_dialog.dart';
+import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
 import 'package:otakuplanner/widgets/task_card.dart';
@@ -72,6 +73,20 @@ class _DashboardState extends State<Dashboard> {
             ),
           );
         });
+        NotificationService.showToast(
+          context,
+          "Task Added",
+          "'$title' has been added to your tasks",
+        );
+      },
+    );
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return NotificationDropdown();
       },
     );
   }
@@ -86,7 +101,6 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
-
     return Scaffold(
       appBar: AppBar(
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
@@ -105,6 +119,22 @@ class _DashboardState extends State<Dashboard> {
           ),
         ),
         actions: [
+          GestureDetector(
+            onTap: _showNotificationsDialog,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 15.0),
+              child: NotificationBadge(
+                child: CircleAvatar(
+                  backgroundColor: Color(0xFF1E293B),
+                  child: FaIcon(
+                    FontAwesomeIcons.bell,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
           GestureDetector(
             onTap: profile,
             child: Padding(
@@ -469,69 +499,104 @@ class _DashboardState extends State<Dashboard> {
                 ],
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-              ...tasks.asMap().entries.map((entry) {
-                int index = entry.key;
-                Task task = entry.value;
-                return TaskCard(
-                  title: task.title,
-                  category: task.category,
-                  time: task.time,
-                  icon: task.icon,
-                  isChecked: task.isChecked,
-                  onChanged: (val) {
-                    setState(() {
-                      task.isChecked = val ?? false;
-                    });
-                  },
-                  onEdit: () {
-                    showTaskDialog(
-                      context: context,
-                      dialogTitle: "Edit Task",
-                      initialTitle: task.title,
-                      initialCategory: task.category,
-                      initialTime: task.time,
-                      onSubmit: (title, category, time) {
-                        setState(() {
-                          task.title = title;
-                          task.category = category;
-                          task.time = time;
-                        });
-                      },
-                    );
-                  },
-                  onDelete: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text("Delete Task"),
-                          content: Text(
-                            "Are you sure you want to delete ${task.title}?",
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: Text("Cancel"),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  tasks.removeAt(index);
-                                });
-                                Navigator.of(context).pop();
-                              },
-                              child: Text(
-                                "Delete",
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                );
-              }).toList(),
+              tasks.isEmpty
+                  ? Center(
+                    child: Text(
+                      "No tasks available",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                  : Column(
+                    children:
+                        tasks.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          Task task = entry.value;
+                          return TaskCard(
+                            title: task.title,
+                            category: task.category,
+                            time: task.time,
+                            icon: task.icon,
+                            isChecked: task.isChecked,
+                            onChanged: (val) {
+                              setState(() {
+                                task.isChecked = val ?? false;
+                                if (task.isChecked) {
+                                  NotificationService.showToast(
+                                    context,
+                                    "Task Completed",
+                                    "You've completed '${task.title}'",
+                                  );
+                                }
+                              });
+                            },
+                            onEdit: () {
+                              showTaskDialog(
+                                context: context,
+                                dialogTitle: "Edit Task",
+                                initialTitle: task.title,
+                                initialCategory: task.category,
+                                initialTime: task.time,
+                                onSubmit: (title, category, time) {
+                                  setState(() {
+                                    String oldTitle = task.title;
+
+                                    task.title = title;
+                                    task.category = category;
+                                    task.time = time;
+                                    NotificationService.showToast(
+                                      context,
+                                      "Task Updated",
+                                      "'$oldTitle' has been updated",
+                                    );
+                                  });
+                                },
+                              );
+                            },
+                            onDelete: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text("Delete Task"),
+                                    content: Text(
+                                      "Are you sure you want to delete ${task.title}?",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed:
+                                            () => Navigator.of(context).pop(),
+                                        child: Text("Cancel"),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          String deletedTaskTitle = task.title;
+
+                                          setState(() {
+                                            tasks.removeAt(index);
+                                          });
+                                          Navigator.of(context).pop();
+                                          NotificationService.showToast(
+                                            context,
+                                            "Task Deleted",
+                                            "'$deletedTaskTitle' has been removed",
+                                          );
+                                        },
+                                        child: Text(
+                                          "Delete",
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        }).toList(),
+                  ),
             ],
           ),
         ),

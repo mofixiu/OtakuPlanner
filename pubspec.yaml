@@ -39,6 +39,10 @@ dependencies:
   table_calendar: ^3.0.8
   intl: ^0.18.0
   shared_preferences: ^2.0.15
+  image_picker: ^0.8.7+4
+  animated_switch: ^0.0.3
+  family_bottom_sheet: ^0.0.2
+  
 
 
 

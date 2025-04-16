@@ -9,6 +9,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:otakuplanner/shared/categories.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:otakuplanner/shared/notifications.dart'; // Import the notifications file
 
 final Map<String, IconData> categoryIcons = {
   "Study": FontAwesomeIcons.bookAtlas,
@@ -32,7 +33,6 @@ final Map<String, IconData> categoryIcons = {
   "Cleaning": FontAwesomeIcons.broom,
   "Social": FontAwesomeIcons.peopleGroup,
   "Other": FontAwesomeIcons.listCheck,
-
 };
 
 String formatDateWithOrdinal(DateTime date) {
@@ -85,12 +85,22 @@ class _CalendarState extends State<Calendar> {
   final int _currentIndex = 1;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  
   @override
   void initState() {
     super.initState();
-    // Initialize _selectedDay to the current day
     _selectedDay = DateTime.now();
   }
+  
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return NotificationDropdown();
+      },
+    );
+  }
+  
   void showDayOptionsDialog(DateTime selectedDay) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final hasTasks = taskProvider.tasks[selectedDay]?.isNotEmpty ?? false;
@@ -114,22 +124,28 @@ class _CalendarState extends State<Calendar> {
                         ? "Add Another Task for ${formatDateWithOrdinal(selectedDay)}"
                         : "Add Task for ${formatDateWithOrdinal(selectedDay)}",
                     onSubmit: (title, category, time) {
+                      final formattedCategory = category[0].toUpperCase() +
+                            category.substring(1).toLowerCase();
                       final task = Task(
                         title: title,
-                        category: category[0].toUpperCase() +
-                            category.substring(1).toLowerCase(),
+                        category: formattedCategory,
                         time: time,
                         color: Task.getRandomColor(),
-                        icon: categoryIcons[category[0].toUpperCase() +
-                                category.substring(1).toLowerCase()] ??
+                        icon: categoryIcons[formattedCategory] ??
                             FontAwesomeIcons.listCheck, // Default icon if category not found
                       );
                       taskProvider.addTask(selectedDay, task);
-                      if (!Categories.categories.contains(category)) {
-                        category = category[0].toUpperCase() +
-                            category.substring(1).toLowerCase();
-                        Categories.categories.add(category);
+                      if (!Categories.categories.contains(formattedCategory)) {
+                        Categories.categories.add(formattedCategory);
                       }
+                      
+                      // Show notification for task added
+                      final formattedDate = formatDateWithOrdinal(selectedDay);
+                      NotificationService.showToast(
+                        context,
+                        "Task Added",
+                        "'$title' has been scheduled for $formattedDate"
+                      );
                     },
                   );
                 },
@@ -172,6 +188,8 @@ class _CalendarState extends State<Calendar> {
   void showDeleteOptionsDialog(DateTime selectedDay) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final tasks = taskProvider.tasks[selectedDay] ?? [];
+    final formattedDate = formatDateWithOrdinal(selectedDay);
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -183,14 +201,22 @@ class _CalendarState extends State<Calendar> {
                   mainAxisSize: MainAxisSize.min,
                   children: tasks.map((task) {
                     return ListTile(
-                      leading: Icon(Icons.task, color: task.color),
+                      leading: Icon(task.icon ?? Icons.task, color: task.color),
                       title: Text(task.title),
                       subtitle: Text("${task.category} - ${task.time}"),
                       trailing: IconButton(
                         icon: Icon(Icons.delete, color: Colors.red),
                         onPressed: () {
+                          final deletedTaskTitle = task.title;
                           taskProvider.deleteTask(selectedDay, task);
-                          Navigator.pop(context); 
+                          Navigator.pop(context);
+                          
+                          // Show notification for task deletion
+                          NotificationService.showToast(
+                            context,
+                            "Task Deleted",
+                            "'$deletedTaskTitle' scheduled for $formattedDate has been removed"
+                          );
                         },
                       ),
                     );
@@ -204,6 +230,7 @@ class _CalendarState extends State<Calendar> {
   void showEditTaskDialog(DateTime selectedDay) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final tasks = taskProvider.tasks[selectedDay] ?? [];
+    final formattedDate = formatDateWithOrdinal(selectedDay);
 
     showDialog(
       context: context,
@@ -216,12 +243,13 @@ class _CalendarState extends State<Calendar> {
                   mainAxisSize: MainAxisSize.min,
                   children: tasks.map((task) {
                     return ListTile(
-                      leading: Icon(Icons.task, color: task.color),
+                      leading: Icon(task.icon ?? Icons.task, color: task.color),
                       title: Text(task.title),
                       subtitle: Text("${task.category} - ${task.time}"),
                       trailing: IconButton(
                         icon: Icon(Icons.edit, color: Colors.blue),
                         onPressed: () {
+                          final originalTitle = task.title;
                           Navigator.pop(context); // Close the dialog
                           showTaskDialog(
                             context: context,
@@ -230,19 +258,28 @@ class _CalendarState extends State<Calendar> {
                             initialCategory: task.category,
                             initialTime: task.time,
                             onSubmit: (title, category, time) {
+                              final formattedCategory = category[0].toUpperCase() +
+                                    category.substring(1).toLowerCase();
                               final updatedTask = Task(
                                 title: title,
-                                category: category,
+                                category: formattedCategory,
                                 time: time,
                                 color: task.color, // Keep the same color
-                                icon: categoryIcons[category] ?? FontAwesomeIcons.listCheck, // Default icon if category not found
+                                icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
                               );
                               taskProvider.editTask(selectedDay, task, updatedTask);
 
                               // Add the category to the shared list if it doesn't exist
-                              if (!Categories.categories.contains(category)) {
-                                Categories.categories.add(category);
+                              if (!Categories.categories.contains(formattedCategory)) {
+                                Categories.categories.add(formattedCategory);
                               }
+                              
+                              // Show notification for task update
+                              NotificationService.showToast(
+                                context,
+                                "Task Updated",
+                                "'$originalTitle' scheduled for $formattedDate has been updated"
+                              );
                             },
                           );
                         },
@@ -276,6 +313,22 @@ class _CalendarState extends State<Calendar> {
         ),
         actions: [
           GestureDetector(
+            onTap: _showNotificationsDialog,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 15.0),
+              child: NotificationBadge(
+                child: CircleAvatar(
+                  backgroundColor: Color(0xFF1E293B),
+                  child: FaIcon(
+                    FontAwesomeIcons.bell,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
@@ -284,7 +337,10 @@ class _CalendarState extends State<Calendar> {
             },
             child: Padding(
               padding: const EdgeInsets.only(right: 15.0),
-              child: CircleAvatar(child: Icon(Icons.person)),
+              child: CircleAvatar(
+                backgroundColor: Color(0xFF1E293B),
+                child: Icon(Icons.person, color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -344,33 +400,6 @@ class _CalendarState extends State<Calendar> {
                   return null;
                 },
               ),
-              // if i want to make it three dots under looks ugly though
-//               calendarBuilders: CalendarBuilders(
-//   markerBuilder: (context, day, events) {
-//     final tasksForDay = taskProvider.tasks[day];
-//     if (tasksForDay != null && tasksForDay.isNotEmpty) {
-//       return Positioned(
-//         bottom: 1,
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: tasksForDay.take(3).map((task) {
-//             // Limit to 3 dots for better UI
-//             return Container(
-//               margin: EdgeInsets.symmetric(horizontal: 1),
-//               width: 6,
-//               height: 6,
-//               decoration: BoxDecoration(
-//                 color: task.color, // Set the marker color to the task's color
-//                 shape: BoxShape.circle,
-//               ),
-//             );
-//           }).toList(),
-//         ),
-//       );
-//     }
-//     return null;
-//   },
-// ),
             ),
             SizedBox(height: 16),
             Text(
@@ -392,11 +421,95 @@ class _CalendarState extends State<Calendar> {
                         final task = taskProvider.tasks[_selectedDay]![index];
                         return ListTile(
                           leading: Icon(
-                            task.icon ?? FontAwesomeIcons.tasks, // Use the task's icon
+                            task.icon ?? FontAwesomeIcons.listCheck, // Use the task's icon
                             color: task.color, // Set the icon color to match the task's color
                           ),
                           title: Text(task.title),
                           subtitle: Text("${task.category} - ${task.time}"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () {
+                                  final originalTitle = task.title;
+                                  showTaskDialog(
+                                    context: context,
+                                    dialogTitle: "Edit Task",
+                                    initialTitle: task.title,
+                                    initialCategory: task.category,
+                                    initialTime: task.time,
+                                    onSubmit: (title, category, time) {
+                                      final formattedCategory = category[0].toUpperCase() +
+                                            category.substring(1).toLowerCase();
+                                      final updatedTask = Task(
+                                        title: title,
+                                        category: formattedCategory,
+                                        time: time,
+                                        color: task.color, // Keep the same color
+                                        icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
+                                      );
+                                      taskProvider.editTask(_selectedDay!, task, updatedTask);
+
+                                      // Add the category to the shared list if it doesn't exist
+                                      if (!Categories.categories.contains(formattedCategory)) {
+                                        Categories.categories.add(formattedCategory);
+                                      }
+                                      
+                                      // Show notification for task update
+                                      final formattedDate = formatDateWithOrdinal(_selectedDay!);
+                                      NotificationService.showToast(
+                                        context,
+                                        "Task Updated",
+                                        "'$originalTitle' scheduled for $formattedDate has been updated"
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  final deletedTaskTitle = task.title;
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return AlertDialog(
+                                        title: Text("Delete Task"),
+                                        content: Text(
+                                          "Are you sure you want to delete '$deletedTaskTitle'?",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              taskProvider.deleteTask(_selectedDay!, task);
+                                              Navigator.pop(context);
+                                              
+                                              // Show notification for task deletion
+                                              final formattedDate = formatDateWithOrdinal(_selectedDay!);
+                                              NotificationService.showToast(
+                                                context,
+                                                "Task Deleted",
+                                                "'$deletedTaskTitle' scheduled for $formattedDate has been removed"
+                                              );
+                                            },
+                                            child: Text(
+                                              "Delete",
+                                              style: TextStyle(color: Colors.red),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -405,6 +518,42 @@ class _CalendarState extends State<Calendar> {
         ),
       ),
       bottomNavigationBar: BottomNavBar(currentIndex: _currentIndex),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Color(0xFF1E293B),
+        child: Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          if (_selectedDay != null) {
+            showTaskDialog(
+              context: context,
+              dialogTitle: "Add Task for ${formatDateWithOrdinal(_selectedDay!)}",
+              onSubmit: (title, category, time) {
+                final formattedCategory = category[0].toUpperCase() +
+                      category.substring(1).toLowerCase();
+                final task = Task(
+                  title: title,
+                  category: formattedCategory,
+                  time: time,
+                  color: Task.getRandomColor(),
+                  icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
+                );
+                taskProvider.addTask(_selectedDay!, task);
+                
+                if (!Categories.categories.contains(formattedCategory)) {
+                  Categories.categories.add(formattedCategory);
+                }
+                
+                // Show notification for task added
+                final formattedDate = formatDateWithOrdinal(_selectedDay!);
+                NotificationService.showToast(
+                  context,
+                  "Task Added",
+                  "'$title' has been scheduled for $formattedDate"
+                );
+              },
+            );
+          }
+        },
+      ),
     );
   }
 }
