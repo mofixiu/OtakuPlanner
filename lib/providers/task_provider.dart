@@ -22,6 +22,16 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void editTask(DateTime date, Task oldTask, Task newTask) {
+    if (_tasks[date] != null) {
+      final taskIndex = _tasks[date]!.indexOf(oldTask);
+      if (taskIndex != -1) {
+        _tasks[date]![taskIndex] = newTask;
+        notifyListeners();
+      }
+    }
+  }
+
   List<Task> getTasksByCategory(String category) {
     if (category == "All") {
       return _tasks.values.expand((tasks) => tasks).toList();
