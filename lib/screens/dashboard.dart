@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
@@ -101,6 +103,8 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
+      final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+
     return Scaffold(
       appBar: AppBar(
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
@@ -139,7 +143,14 @@ class _DashboardState extends State<Dashboard> {
             onTap: profile,
             child: Padding(
               padding: const EdgeInsets.only(right: 15.0),
-              child: CircleAvatar(child: Icon(Icons.person)),
+              child: CircleAvatar(
+                backgroundColor: Color(0xFF1E293B),
+ backgroundImage: profileImagePath.isNotEmpty
+      ? FileImage(File(profileImagePath))
+      : null,
+  child: profileImagePath.isEmpty
+      ? Icon(Icons.person, color: Colors.grey)
+      : null,              ),
             ),
           ),
         ],

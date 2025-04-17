@@ -1,13 +1,17 @@
 // ignore_for_file: deprecated_member_use
 // import 'package:animated_switch/animated_switch.dart';
+import 'dart:io';
+
 import 'package:family_bottom_sheet/family_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/entryScreens/changePassword.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/profile.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButtonWithAnIcon.dart';
+import 'package:otakuplanner/widgets/tustomButton.dart';
 import 'package:provider/provider.dart';
 
 class Settings extends StatefulWidget {
@@ -39,10 +43,15 @@ class _SettingsState extends State<Settings> {
   bool isApp = false;
   bool isSystem = false;
   bool isEmail = false;
+  bool isPopup = false;
+
   bool has2FAEnabled = false;
 
   @override
   Widget build(BuildContext context) {
+    final profileImagePath =
+        Provider.of<UserProvider>(context).profileImagePath;
+
     return Scaffold(
       appBar: AppBar(
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
@@ -63,7 +72,17 @@ class _SettingsState extends State<Settings> {
             onTap: profile,
             child: Padding(
               padding: const EdgeInsets.only(right: 15.0),
-              child: CircleAvatar(child: Icon(Icons.person)),
+              child: CircleAvatar(
+                backgroundColor: Color(0xFF1E293B),
+                backgroundImage:
+                    profileImagePath.isNotEmpty
+                        ? FileImage(File(profileImagePath))
+                        : null,
+                child:
+                    profileImagePath.isEmpty
+                        ? Icon(Icons.person, color: Colors.grey)
+                        : null,
+              ),
             ),
           ),
         ],
@@ -75,55 +94,69 @@ class _SettingsState extends State<Settings> {
           physics: BouncingScrollPhysics(),
           child: Column(
             children: [
-              Container(
-                height: 100,
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
+              GestureDetector(
+                onTap:profile,
+                child: Container(
+                  height: 100,
+                  width: MediaQuery.of(context).size.width,
+                  decoration: BoxDecoration(
+                    color: Color.fromRGBO(255, 249, 233, 1),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      CircleAvatar(radius: 50),
-                      SizedBox(width: 5),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: 20),
-                          Text(
-                            "User",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            "placeholder@email.com",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Color(0xFF1E293B),
+                          backgroundImage:
+                              profileImagePath.isNotEmpty
+                                  ? FileImage(File(profileImagePath))
+                                  : null,
+                          child:
+                              profileImagePath.isEmpty
+                                  ? Icon(Icons.person, color: Colors.grey)
+                                  : null,
+                        ),
+                        SizedBox(width: 5),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 20),
+                            Text(
+                              "User",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "placeholder@email.com",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -244,7 +277,7 @@ class _SettingsState extends State<Settings> {
                               color: Color(0xFF1E293B),
                             ),
                           ),
-                          
+
                           Switch(
                             value: _isAnimeMode,
                             onChanged: (value) {
@@ -294,7 +327,8 @@ class _SettingsState extends State<Settings> {
                                   ),
                                 ),
                               ),
-                              value: "Option 1", // Set a default value like "Option 1" (English)
+                              value:
+                                  "Option 1", // Set a default value like "Option 1" (English)
                               hint: Text(
                                 "Select an option",
                                 style: TextStyle(fontSize: 12.7),
@@ -389,7 +423,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 6,
+                height: MediaQuery.of(context).size.height / 4.6,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: Color.fromRGBO(255, 249, 233, 1),
@@ -473,6 +507,33 @@ class _SettingsState extends State<Settings> {
                             onChanged: (value) {
                               setState(() {
                                 isSystem = value;
+                              });
+                            },
+                            activeColor: Color(0xFF1E293B),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              FaIcon(FontAwesomeIcons.bell),
+                              SizedBox(width: 5),
+                              Text(
+                                "Popup Notifications",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: isPopup,
+                            onChanged: (value) {
+                              setState(() {
+                                isPopup = value;
                               });
                             },
                             activeColor: Color(0xFF1E293B),
@@ -574,7 +635,8 @@ class _SettingsState extends State<Settings> {
                                       padding: const EdgeInsets.all(16.0),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             "Set Up Two-Factor Authentication",
@@ -613,8 +675,16 @@ class _SettingsState extends State<Settings> {
                                                   child: Image.asset(
                                                     "assets/images/qr-code-placeholder.png",
                                                     height: 150,
-                                                    errorBuilder: (context, error, stackTrace) =>
-                                                        Icon(Icons.qr_code_scanner, size: 150, color: Colors.grey),
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) => Icon(
+                                                          Icons.qr_code_scanner,
+                                                          size: 150,
+                                                          color: Colors.grey,
+                                                        ),
                                                   ),
                                                 ),
                                                 SizedBox(height: 15),
@@ -631,29 +701,46 @@ class _SettingsState extends State<Settings> {
                                                     counterText: "",
                                                     hintText: "------",
                                                     hintStyle: TextStyle(
-                                                      color: Colors.grey.shade500,
+                                                      color:
+                                                          Colors.grey.shade500,
                                                       fontSize: 18,
                                                       letterSpacing: 3,
                                                     ),
                                                     filled: true,
                                                     fillColor: Colors.grey[200],
                                                     border: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      borderSide: BorderSide.none,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8.0,
+                                                          ),
+                                                      borderSide:
+                                                          BorderSide.none,
                                                     ),
-                                                    focusedBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      borderSide: BorderSide(
-                                                        color: Color(0xFF1E293B),
-                                                        width: 1.5,
-                                                      ),
-                                                    ),
-                                                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                                    focusedBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8.0,
+                                                              ),
+                                                          borderSide:
+                                                              BorderSide(
+                                                                color: Color(
+                                                                  0xFF1E293B,
+                                                                ),
+                                                                width: 1.5,
+                                                              ),
+                                                        ),
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 12,
+                                                        ),
                                                   ),
                                                 ),
                                                 SizedBox(height: 20),
                                                 Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceEvenly,
                                                   children: [
                                                     TextButton(
                                                       onPressed: () {
@@ -664,18 +751,27 @@ class _SettingsState extends State<Settings> {
                                                       },
                                                       child: Text(
                                                         "Cancel",
-                                                        style: TextStyle(color: Colors.grey),
+                                                        style: TextStyle(
+                                                          color: Colors.grey,
+                                                        ),
                                                       ),
                                                     ),
                                                     ElevatedButton(
                                                       onPressed: () {
                                                         Navigator.pop(ctx);
                                                       },
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Color(0xFF1E293B),
-                                                        foregroundColor: Colors.white,
+                                                      style:
+                                                          ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                Color(
+                                                                  0xFF1E293B,
+                                                                ),
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                          ),
+                                                      child: Text(
+                                                        "Verify & Enable",
                                                       ),
-                                                      child: Text("Verify & Enable"),
                                                     ),
                                                   ],
                                                 ),
@@ -980,8 +1076,15 @@ class _SettingsState extends State<Settings> {
                   ),
                 ),
               ),
-              SizedBox(height: MediaQuery.of(context).size.height*0.02),
-              CustomButton(ontap: (){}, data: "LOG OUT", textcolor: Colors.white, backgroundcolor: Colors.red, width: MediaQuery.of(context).size.width, height: 50)
+              SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+              Tustom(
+                ontap: () {},
+                data: "LOG OUT",
+                textcolor: Colors.white,
+                backgroundcolor: Colors.red,
+                width: MediaQuery.of(context).size.width,
+                height: 50,
+              ),
             ],
           ),
         ),

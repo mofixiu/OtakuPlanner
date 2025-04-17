@@ -22,6 +22,7 @@ class Achievement {
   });
 }
 
+
 const List<Achievement> achievementsData = [
   Achievement(
     id: 1,

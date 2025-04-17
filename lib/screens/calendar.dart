@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/profile.dart';
 import 'package:otakuplanner/screens/task_dialog2.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
@@ -85,7 +87,7 @@ class _CalendarState extends State<Calendar> {
   final int _currentIndex = 1;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  
+
   @override
   void initState() {
     super.initState();
@@ -295,6 +297,7 @@ class _CalendarState extends State<Calendar> {
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
+  final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
 
     return Scaffold(
       appBar: AppBar(
@@ -339,8 +342,12 @@ class _CalendarState extends State<Calendar> {
               padding: const EdgeInsets.only(right: 15.0),
               child: CircleAvatar(
                 backgroundColor: Color(0xFF1E293B),
-                child: Icon(Icons.person, color: Colors.white),
-              ),
+ backgroundImage: profileImagePath.isNotEmpty
+      ? FileImage(File(profileImagePath))
+      : null,
+  child: profileImagePath.isEmpty
+      ? Icon(Icons.person, color: Colors.grey)
+      : null,              ),
             ),
           ),
         ],

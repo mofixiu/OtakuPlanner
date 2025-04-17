@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/editProfile.dart';
 import 'package:otakuplanner/widgets/customButtonwithSmallerTextandanIcon.dart';
+import 'package:provider/provider.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -21,6 +25,8 @@ class _ProfileState extends State<Profile> {
 
   @override
   Widget build(BuildContext context) {
+    final profileImagePath =
+        Provider.of<UserProvider>(context).profileImagePath;
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.only(top: 50, left: 30.0, right: 30),
@@ -91,6 +97,15 @@ class _ProfileState extends State<Profile> {
                       ),
                       CircleAvatar(
                         radius: 40,
+                        backgroundColor: Color(0xFF1E293B),
+                        backgroundImage:
+                            profileImagePath.isNotEmpty
+                                ? FileImage(File(profileImagePath))
+                                : null,
+                            child:
+                            profileImagePath.isEmpty
+                                ? Icon(Icons.person, color: Colors.grey)
+                                : null,
                         // backgroundImage: AssetImage("assets/images/otaku.jpg"),
                       ),
                       SizedBox(
@@ -448,69 +463,84 @@ class _ProfileState extends State<Profile> {
                                 ),
                               ),
                               SizedBox(height: 1),
-                             Row(
-                              children: [
-                                Container(
-                              height: 20,
-                              width: 50,
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 155, 201, 239),
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(20),
-                                  bottomRight: Radius.circular(20),
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
+                              Row(
+                                children: [
+                                  Container(
+                                    height: 20,
+                                    width: 50,
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromARGB(
+                                        255,
+                                        155,
+                                        201,
+                                        239,
+                                      ),
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(20),
+                                        bottomRight: Radius.circular(20),
+                                        topLeft: Radius.circular(20),
+                                        topRight: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "Work",
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Container(
+                                    height: 20,
+                                    width: 50,
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromARGB(
+                                        255,
+                                        155,
+                                        201,
+                                        239,
+                                      ),
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(20),
+                                        bottomRight: Radius.circular(20),
+                                        topLeft: Radius.circular(20),
+                                        topRight: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "Study",
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Container(
+                                    height: 20,
+                                    width: 80,
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromARGB(
+                                        255,
+                                        155,
+                                        201,
+                                        239,
+                                      ),
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(20),
+                                        bottomRight: Radius.circular(20),
+                                        topLeft: Radius.circular(20),
+                                        topRight: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "Personal",
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: Center(
-                                child: Text(
-                                  "Work",
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 5),
-                            Container(
-                              height: 20,
-                              width: 50,
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 155, 201, 239),
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(20),
-                                  bottomRight: Radius.circular(20),
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Study",
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 5),
-                            Container(
-                              height: 20,
-                              width: 80,
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 155, 201, 239),
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(20),
-                                  bottomRight: Radius.circular(20),
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Personal",
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                              ],
-                             )
                             ],
                           ),
                         ],

@@ -23,12 +23,16 @@ class _EditProfileState extends State<EditProfile> {
       setState(() {
         _profileImage = File(pickedFile.path); // Store the selected image
       });
+       Provider.of<UserProvider>(context, listen: false)
+        .setProfileImagePath(pickedFile.path);
+  
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
+      final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
 
     return GestureDetector(
       onTap: () {
