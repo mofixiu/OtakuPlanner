@@ -1,94 +1,147 @@
-// import 'package:cliquo/utils/constants/color.dart';
-// import 'package:cliquo/utils/theme/custom_themes/appbar_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/bottom_sheet_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/checkbox_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/chip_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/elevated_button_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/outlined_button_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/text_field_theme.dart';
-// import 'package:cliquo/utils/theme/custom_themes/text_theme.dart';
-// import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
-// class TAppTheme {
-//   TAppTheme._();
+class OtakuPlannerTheme {
+  OtakuPlannerTheme._();
 
-//   static ThemeData lightTheme = ThemeData(
-//       useMaterial3: true,
-//       fontFamily: 'Aeonik',
-//       brightness: Brightness.light,
-//       primarColor: TColors.primaryColor,
-//       iconTheme: const IconThemeData(color: TColors.darkThemeBg),
-//       indicatorColor: const Color(0xFFF5F5F5),
-//       scaffoldBackgroundColor: Colors.white,
-//  CTheme.lightTheme,
-//       chipTheme: TChipTheme.lightChipTheme,
-//       appBarTheme: TAppBarTheme.lightAppBarTheme,
-//       checkboxTheme: TCheckBoxTheme.lightCheckBoxTheme,
-//       bottomSheetTheme: TBottomSheetTheme.lightBottomSheetTheme,
-//       elevatedButtonTheme: TElevatedButtonTheme.lightElevatedButtonTheme,
-//       outlinedButtonTheme: TOutlinedButtonTheme.lightOutlinedButtonTheme,
-//       inputDecorationTheme: TTextFormFieldTheme.lightInputDecorationTheme);
-//   static ThemeData darkTheme = ThemeData(
-//       useMaterial3: true,
-//       fontFamily: 'Aeonik',
-//       brightness: Brightness.light,
-//       primaryColor: TColors.primaryColor,
-//       scaffoldBackgroundColor: TColors.darkThemeBg,
-//       iconTheme: const IconThemeData(color: Colors.white),
-//       indicatorColor: const Color(0xFF222222),
-//       textTheme: TTextTheme.darkTheme,
-//       chipTheme: TChipTheme.darkChipTheme,
-//       appBarTheme: TAppBarTheme.darkAppBarTheme,
-//       checkboxTheme: TCheckBoxTheme.darkCheckBoxTheme,
-//       bottomSheetTheme: TBottomSheetTheme.darkBottomSheetTheme,
-//       elevatedButtonTheme: TElevatedButtonTheme.darkElevatedButtonTheme,
-//       outlinedButtonTheme: TOutlinedButtonTheme.darkOutlinedButtonTheme,
-//       inputDecorationTheme: TTextFormFieldTheme.darkInputDecorationTheme);
-// }
+  // Common theme colors and values
+  static const Color darkBackground = Color(0xFF1E293B);
+  static const Color darkCardBackground = Color(0xFF131D2D);
+  static const Color darkBorderColor = Color(0xFF4B5563);
+  static const Color darkButtonBackground = Color(0xFF334155);
+  
+  static const Color lightBackground = Color.fromRGBO(252, 242, 232, 1);
+  static const Color lightCardBackground = Color.fromRGBO(252, 242, 232, 1);
+  static const Color lightAppBarBackground = Color.fromRGBO(255, 249, 233, 1);
+  static const Color lightBorderColor = Colors.black;
+  static const Color lightButtonBackground = Color(0xFF1E293B);
+  
+  static const Color accentColor = Color(0xFF1E293B);
+  
+  // Dropdown specific colors
+  static const Color darkDropdownBackground = Color(0xFF131D2D);
+  static const Color lightDropdownBackground = Color.fromRGBO(252, 242, 232, 1);
+  static const Color darkDropdownItemHover = Color(0xFF334155);
+  static const Color lightDropdownItemHover = Color(0xFFE5E7EB);
 
-// import 'package:flutter/material.dart';
-// class OtakuPlannerTheme {
-//   OtakuPlannerTheme._();
+  // Get theme-specific colors based on brightness
+  static Color getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? darkCardBackground 
+        : lightCardBackground;
+  }
+  
+  static Color getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? Colors.white 
+        : Color(0xFF1E293B);
+  }
+  
+  static Color getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? darkBorderColor 
+        : lightBorderColor;
+  }
+  
+  static Color getButtonColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? darkButtonBackground 
+        : lightButtonBackground;
+  }
+  
+  // Add these new methods for dropdown styling
+  static Color getDropdownBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? darkDropdownBackground 
+        : lightDropdownBackground;
+  }
+  
+  static Color getDropdownItemColor(BuildContext context) {
+    return getTextColor(context);
+  }
+  
+  static Color getDropdownIconColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? Colors.white70 
+        : Color(0xFF1E293B);
+  }
+  
+  static Color getDropdownHoverColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? darkDropdownItemHover 
+        : lightDropdownItemHover;
+  }
+  
+  static BoxShadow getBoxShadow(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return BoxShadow(
+      color: isDark ? Colors.black26 : Colors.grey.withOpacity(0.2),
+      spreadRadius: 1,
+      blurRadius: 4,
+      offset: Offset(0, 2),
+    );
+  }
 
-//   static ThemeData lightTheme = ThemeData(
-//       useMaterial3: true,
-//       fontFamily: 'Poppins',
-//       brightness: Brightness.light,
-//       primaryColor: Colors.white,
-//       iconTheme: const IconThemeData(color: Colors.white),
-//       indicatorColor: const Color(0xFFF5F5F5),
-//         scaffoldBackgroundColor: Color.fromRGBO(252, 242, 232, 1),
-//       textTheme: Colors.white,
-//       chipTheme: Colors.white,
-//       appBarTheme: Color.fromRGBO(252, 242, 232, 1),
-//       checkboxTheme:Colors.purple,
-//       bottomSheetTheme: Colors.white,
-//       elevatedButtonTheme: Color(0xFF1E293B),
-//       outlinedButtonTheme: Color(0xFF1E293B),
-//       inputDecorationTheme: Colors.white,
-//       canvasColor: Colors.white,
-//       bodyLarge: TextStyle(color: Colors.black),
-//       bodyMedium: TextStyle(color: Colors.black),
-//       );
+  static ThemeData lightTheme = ThemeData(
+    useMaterial3: true,
+    fontFamily: 'Poppins',
+    brightness: Brightness.light,
+    primaryColor: Colors.black,
+    iconTheme: const IconThemeData(color: Colors.grey),
+    indicatorColor: const Color(0xFFF5F5F5),
+    scaffoldBackgroundColor: lightBackground,
+    appBarTheme: AppBarTheme(
+      centerTitle: false,
+      backgroundColor: lightAppBarBackground,
+      elevation: 2,
+      scrolledUnderElevation: 2,
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      fillColor: MaterialStateProperty.all(accentColor),
+      checkColor: MaterialStateProperty.all(Colors.white),
+      side: BorderSide(color: accentColor, width: 2),
+    ),
+    canvasColor: Colors.white,
+    // Add dropdown theme settings
+    dropdownMenuTheme: DropdownMenuThemeData(
+      menuStyle: MenuStyle(
+        backgroundColor: MaterialStateProperty.all(lightDropdownBackground),
+      ),
+      textStyle: TextStyle(color: Color(0xFF1E293B)),
+    ),
+  );
 
-//   static ThemeData dartTheme = ThemeData(
-//       useMaterial3: true,
-//       fontFamily: 'Poppins',
-//       brightness: Brightness.dark,
-//       primaryColor: Color(0xFF1E293B),
-//       scaffoldBackgroundColor:Color(0xFF121212),
-//       iconTheme: const IconThemeData(color: Colors.white),
-//       indicatorColor: const Color(0xFF222222),
-//       canvasColor: Color(0xFF121212), 
-//       bodyLarge: TextStyle(color: Colors.white),
-//       bodyMedium: TextStyle(color: Colors.white70),)
-//       textTheme:Colors.white ,
-//       chipTheme:Color(0xFF121212) ,
-//       appBarTheme:Color(0xFF121212) ,
-//       checkboxTheme: Color(0xFF121212),
-//       bottomSheetTheme:Color(0xFF121212) ,
-//       elevatedButtonTheme: Color(0xFF1E293B),
-//       outlinedButtonTheme:Color(0xFF1E293B) ,
-//       inputDecorationTheme:Colors.white ,
-      
-// }
+  static ThemeData darkTheme = ThemeData(
+    useMaterial3: true,
+    fontFamily: 'Poppins',
+    brightness: Brightness.dark,
+    primaryColor: Colors.white,
+    iconTheme: const IconThemeData(color: Colors.white),
+    indicatorColor: const Color(0xFFF5F5F5),
+    scaffoldBackgroundColor: darkBackground,
+    appBarTheme: AppBarTheme(
+      centerTitle: false,
+      backgroundColor: darkCardBackground,
+      elevation: 2,
+      scrolledUnderElevation: 2,
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      fillColor: MaterialStateProperty.all(accentColor),
+      checkColor: MaterialStateProperty.all(Colors.white),
+      side: BorderSide(color: accentColor, width: 2),
+    ),
+    textTheme: TextTheme(
+      bodyLarge: TextStyle(color: Colors.white),
+      bodyMedium: TextStyle(color: Colors.white70),
+    ),
+    canvasColor: Colors.white,
+    // Add dropdown theme settings
+    dropdownMenuTheme: DropdownMenuThemeData(
+      menuStyle: MenuStyle(
+        backgroundColor: MaterialStateProperty.all(darkDropdownBackground),
+      ),
+      textStyle: TextStyle(color: Colors.white),
+    ),
+  );
+}

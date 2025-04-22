@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:step_progress_indicator/step_progress_indicator.dart';
+import 'package:otakuplanner/themes/theme.dart';
 
 class Achievement {
   final int id;
@@ -21,7 +22,6 @@ class Achievement {
     required this.totalRequired,
   });
 }
-
 
 const List<Achievement> achievementsData = [
   Achievement(
@@ -278,6 +278,12 @@ class _AchievementsState extends State<Achievements> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    // final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -292,7 +298,7 @@ class _AchievementsState extends State<Achievements> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: textColor,
                 ),
               ),
               Expanded(
@@ -314,17 +320,14 @@ class _AchievementsState extends State<Achievements> {
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 5),
                         padding: const EdgeInsets.all(10),
-      
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                          border: Border.all(
+                            color: borderColor,
+                            width: 0.4,
+                          ),
+                          boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                         ),
                         child: Row(
                           children: [
@@ -341,34 +344,23 @@ class _AchievementsState extends State<Achievements> {
                               children: [
                                 Text(
                                   achievement.title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: textColor,
                                   ),
                                 ),
                                 Text(
                                   achievement.description,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.black54,
+                                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                                   ),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                        // child: ListTile(
-                        //   leading: Text(
-                        //     achievement.icon,
-                        //     style: const TextStyle(fontSize: 32),
-                        //   ),
-                        //   title: Text(
-                        //     achievement.title,
-                        //     style: const TextStyle(fontWeight: FontWeight.bold),
-                        //   ),
-                        //   subtitle: Text(achievement.description),
-                        // ),
                       ),
                     );
                   },
@@ -391,79 +383,97 @@ void showAchievementDialog(
   required int current,
   required int total,
 }) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  final cardColor = OtakuPlannerTheme.getCardColor(context);
+  final textColor = OtakuPlannerTheme.getTextColor(context);
+  final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+
   showDialog(
     context: context,
-    builder:
-        (context) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(icon, style: const TextStyle(fontSize: 40)),
-                const SizedBox(height: 12),
-                Text(description, style: const TextStyle(fontSize: 16)),
-                const SizedBox(height: 20),
-                StepProgressIndicator(
-                  totalSteps: total,
-                  currentStep: current,
-                  size: 8,
-                  padding: 0,
-                  roundedEdges: const Radius.circular(10),
-                  selectedColor: Colors.yellow,
-                  unselectedColor: Colors.cyan,
-                  selectedGradientColor: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF1E293B), Color(0xFF1E293B)],
-                  ),
-                  unselectedGradientColor: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.grey.shade300, Colors.grey.shade300],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "$current/$total tasks complete",
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  current >= total ? "Completed" : "In Progress",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: current >= total ? Colors.green : Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E293B),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text("Close"),
-                ),
-              ],
+    builder: (context) => Dialog(
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(icon, style: const TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 16,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+            StepProgressIndicator(
+              totalSteps: total,
+              currentStep: current,
+              size: 8,
+              padding: 0,
+              roundedEdges: const Radius.circular(10),
+              selectedGradientColor: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  isDarkMode ? Colors.lightBlue : OtakuPlannerTheme.accentColor,
+                  isDarkMode ? Colors.lightBlue.shade700 : OtakuPlannerTheme.accentColor,
+                ],
+              ),
+              unselectedGradientColor: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                  isDarkMode ? Colors.grey.shade600 : Colors.grey.shade200,
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "$current/$total tasks complete",
+              style: TextStyle(
+                fontSize: 14,
+                color: textColor.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              current >= total ? "Completed" : "In Progress",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: current >= total ? Colors.green : Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: buttonColor,
+                foregroundColor: isDarkMode ? Colors.white : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text("Close"),
+            ),
+          ],
         ),
+      ),
+    ),
   );
 }

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/screens/achievements.dart';
@@ -6,8 +5,7 @@ import 'package:otakuplanner/screens/calendar.dart';
 import 'package:otakuplanner/screens/dashboard.dart';
 import 'package:otakuplanner/screens/settings.dart';
 import 'package:otakuplanner/screens/tasks.dart';
-
-
+import 'package:otakuplanner/themes/theme.dart'; // Add this import
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -46,13 +44,24 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get theme-aware colors
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDarkMode 
+        ? OtakuPlannerTheme.darkCardBackground 
+        : OtakuPlannerTheme.lightCardBackground;
+    final selectedItemColor = isDarkMode ? Colors.lightBlue : Colors.red;
+    final unselectedItemColor = OtakuPlannerTheme.getTextColor(context);
+    
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: (index) => _navigate(context, index),
-      backgroundColor: Color.fromRGBO(252, 242, 232, 1), 
-      selectedItemColor: Colors.red, 
-      unselectedItemColor: Colors.black,
-      type: BottomNavigationBarType.fixed, 
+      backgroundColor: backgroundColor,
+      selectedItemColor: selectedItemColor,
+      unselectedItemColor: unselectedItemColor,
+      type: BottomNavigationBarType.fixed,
+      elevation: 8.0,
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
         BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: "Calendar"),

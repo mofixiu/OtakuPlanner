@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:otakuplanner/entryScreens/loginPage.dart';
+import 'package:otakuplanner/screens/entryScreens/loginPage.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
 
 class ForgotPassword extends StatefulWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:otakuplanner/entryScreens/SetUpPage2.dart';
+import 'package:otakuplanner/screens/entryScreens/SetUpPage2.dart';
 import 'package:otakuplanner/screens/dashboard.dart';
 
 class SetupPage1 extends StatefulWidget {

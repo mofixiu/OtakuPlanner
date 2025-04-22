@@ -5,9 +5,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/profile.dart';
 import 'package:otakuplanner/shared/notifications.dart';
+import 'package:otakuplanner/themes/theme.dart'; // Add theme import
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButtonSmallerTextSize.dart';
-import 'package:otakuplanner/shared/categories.dart'; // Import the shared categories
+import 'package:otakuplanner/shared/categories.dart';
 import 'package:provider/provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 
@@ -34,11 +35,16 @@ class _TasksState extends State<Tasks> {
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
-      final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    
+    // Get theme-specific colors
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
 
-
-    final allTasks =
-        taskProvider.tasks.values.expand((tasks) => tasks).toList();
+    final allTasks = taskProvider.tasks.values.expand((tasks) => tasks).toList();
 
     final filteredTasks =
         _selectedCategory == "All"
@@ -46,7 +52,7 @@ class _TasksState extends State<Tasks> {
             : allTasks
                 .where((task) => task.category == _selectedCategory)
                 .toList();
-    // ignore: no_leading_underscores_for_local_identifiers
+    
     void _showNotificationsDialog() {
       showDialog(
         context: context,
@@ -60,7 +66,7 @@ class _TasksState extends State<Tasks> {
       appBar: AppBar(
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
         centerTitle: false,
-        backgroundColor: Color.fromRGBO(255, 249, 233, 1),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 2,
         scrolledUnderElevation: 2,
         title: Text(
@@ -68,7 +74,7 @@ class _TasksState extends State<Tasks> {
           style: TextStyle(
             fontSize: 25,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
         actions: [
@@ -78,7 +84,7 @@ class _TasksState extends State<Tasks> {
               padding: const EdgeInsets.only(right: 15.0),
               child: NotificationBadge(
                 child: CircleAvatar(
-                  backgroundColor: Color(0xFF1E293B),
+                  backgroundColor: buttonColor,
                   child: FaIcon(
                     FontAwesomeIcons.bell,
                     color: Colors.white,
@@ -93,13 +99,14 @@ class _TasksState extends State<Tasks> {
             child: Padding(
               padding: const EdgeInsets.only(right: 15.0),
               child: CircleAvatar(
-                backgroundColor: Color(0xFF1E293B),
- backgroundImage: profileImagePath.isNotEmpty
-      ? FileImage(File(profileImagePath))
-      : null,
-  child: profileImagePath.isEmpty
-      ? Icon(Icons.person, color: Colors.grey)
-      : null,              ),
+                backgroundColor: buttonColor,
+                backgroundImage: profileImagePath.isNotEmpty
+                    ? FileImage(File(profileImagePath))
+                    : null,
+                child: profileImagePath.isEmpty
+                    ? Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
             ),
           ),
         ],
@@ -122,14 +129,14 @@ class _TasksState extends State<Tasks> {
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B),
+                    color: textColor,
                   ),
                 ),
                 CustomButton(
                   ontap: () {},
                   data: "+ Automate Task",
                   textcolor: Colors.white,
-                  backgroundcolor: Color(0xFF1E293B),
+                  backgroundcolor: buttonColor,
                   width: 150,
                   height: 40,
                 ),
@@ -156,17 +163,26 @@ class _TasksState extends State<Tasks> {
                           horizontal: 15,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected ? Color(0xFF1E293B) : Colors.white,
+                          color: isSelected 
+                              ? buttonColor 
+                              : isDarkMode 
+                                  ? OtakuPlannerTheme.darkCardBackground 
+                                  : Colors.white,
                           border: Border.all(
-                            color: Colors.grey.shade100,
-                            width: 2,
+                            color: borderColor.withOpacity(0.5),
+                            width: 1,
                           ),
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: isSelected 
+                              ? [OtakuPlannerTheme.getBoxShadow(context)] 
+                              : null,
                         ),
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black,
+                            color: isSelected 
+                                ? Colors.white 
+                                : textColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -181,17 +197,45 @@ class _TasksState extends State<Tasks> {
                       ? Center(
                         child: Text(
                           "No tasks available for this category.",
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(
+                            fontSize: 16, 
+                            color: textColor.withOpacity(0.7),
+                          ),
                         ),
                       )
                       : ListView.builder(
                         itemCount: filteredTasks.length,
                         itemBuilder: (context, index) {
                           final task = filteredTasks[index];
-                          return ListTile(
-                            leading: Icon(Icons.task, color: task.color),
-                            title: Text(task.title),
-                            subtitle: Text("${task.category} - ${task.time}"),
+                          return Card(
+                            color: cardColor,
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: borderColor.withOpacity(0.2),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                task.icon ?? Icons.task, 
+                                color: task.color,
+                              ),
+                              title: Text(
+                                task.title,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "${task.category} - ${task.time}",
+                                style: TextStyle(
+                                  color: textColor.withOpacity(0.7),
+                                ),
+                              ),
+                            ),
                           );
                         },
                       ),

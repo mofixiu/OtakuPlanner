@@ -2,15 +2,20 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/calendar.dart';
 import 'package:otakuplanner/screens/profile.dart';
-import 'package:otakuplanner/screens/task_dialog.dart';
+import 'package:otakuplanner/screens/task_dialog2.dart'; // Use the updated dialog
 import 'package:otakuplanner/shared/notifications.dart';
+import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
 import 'package:otakuplanner/widgets/task_card.dart';
 import 'package:provider/provider.dart';
 import 'package:step_progress_indicator/step_progress_indicator.dart';
+import 'package:otakuplanner/models/task.dart' as model;
+// import 'package:otakuplanner/shared/categories.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -35,46 +40,146 @@ class Task {
   });
 }
 
+// Convert dashboard Task to model Task
+model.Task convertToModelTask(Task dashboardTask) {
+  return model.Task(
+    title: dashboardTask.title,
+    category: dashboardTask.category,
+    time: dashboardTask.time,
+    color: Colors.blue, // Default color, will be overridden later
+    icon: dashboardTask.icon,
+    isChecked: dashboardTask.isChecked,
+  );
+}
+
+// Convert model Task to dashboard Task
+Task convertToDashboardTask(model.Task modelTask) {
+  return Task(
+    title: modelTask.title,
+    category: modelTask.category,
+    time: modelTask.time,
+    icon: modelTask.icon ?? FontAwesomeIcons.tasks,
+    isChecked: modelTask.isChecked,
+  );
+}
+
 class _DashboardState extends State<Dashboard> {
   final int _currentIndex = 0;
   bool checked1 = false;
   bool checked2 = false;
   bool checked3 = false;
-  List<Task> tasks = [
-    Task(
-      title: "Complete React tutorial",
-      category: "Study",
-      time: "14:02",
-      icon: FontAwesomeIcons.bookAtlas,
-    ),
-    Task(
-      title: "Morning Workout",
-      category: "Health",
-      time: "7:00",
-      icon: FontAwesomeIcons.dumbbell,
-    ),
-    Task(
-      title: "Project Presentation",
-      category: "Study",
-      time: "14:02",
-      icon: FontAwesomeIcons.briefcase,
-    ),
-  ];
+  List<Task> tasks = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Wait for the widget to build before accessing Provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncTasksWithProvider();
+    });
+  }
+
+  void _syncTasksWithProvider() {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+
+    // Sync local tasks to provider
+    for (var task in tasks) {
+      final modelTask = model.Task(
+        title: task.title,
+        category: task.category,
+        time: task.time,
+        color: model.Task.getRandomColor(),
+        icon: categoryIcons[task.category] ?? FontAwesomeIcons.tasks,
+        isChecked: task.isChecked,
+      );
+
+      // Check if already exists in provider
+      bool exists = false;
+      final existingTasks = taskProvider.tasks[today] ?? [];
+      for (var existingTask in existingTasks) {
+        if (existingTask.title == task.title) {
+          exists = true;
+          break;
+        }
+      }
+
+      // Add to provider if doesn't exist
+      if (!exists) {
+        taskProvider.addTask(today, modelTask);
+      }
+    }
+
+    // Get tasks from provider that aren't in local list
+    final providerTasks = taskProvider.tasks[today] ?? [];
+    for (var providerTask in providerTasks) {
+      bool exists = false;
+      for (var task in tasks) {
+        if (task.title == providerTask.title) {
+          exists = true;
+          break;
+        }
+      }
+
+      // Add to local list if doesn't exist
+      if (!exists) {
+        tasks.add(Task(
+          title: providerTask.title,
+          category: providerTask.category,
+          time: providerTask.time,
+          icon: providerTask.icon ?? FontAwesomeIcons.tasks,
+          isChecked: providerTask.isChecked,
+        ));
+      }
+    }
+
+    setState(() {}); // Refresh UI
+  }
+
   void _showAddTaskDialog() {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+
     showTaskDialog(
       context: context,
       dialogTitle: "New Task",
       onSubmit: (title, category, time) {
+        // Create the dashboard task
+        final dashboardTask = Task(
+          title: title,
+          category: category,
+          time: time,
+          icon: FontAwesomeIcons.tasks,
+        );
+
+        // Add to local tasks list for dashboard
         setState(() {
-          tasks.add(
-            Task(
-              title: title,
-              category: category,
-              time: time,
-              icon: FontAwesomeIcons.tasks,
-            ),
-          );
+          tasks.add(dashboardTask);
         });
+
+        // Convert and add to TaskProvider for calendar/tasks page
+        final modelTask = model.Task(
+          title: title,
+          category: category,
+          time: time,
+          color: model.Task.getRandomColor(),
+          icon: categoryIcons[category] ?? FontAwesomeIcons.tasks,
+          isChecked: false,
+        );
+
+        // Add to provider
+        taskProvider.addTask(today, modelTask);
+
+        // Show notification
         NotificationService.showToast(
           context,
           "Task Added",
@@ -103,15 +208,20 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
-      final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // final primaryColor = Theme.of(context).primaryColor;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
 
     return Scaffold(
       appBar: AppBar(
         leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
-
         centerTitle: false,
-        backgroundColor: Color.fromRGBO(255, 249, 233, 1),
-
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 2,
         scrolledUnderElevation: 2,
         title: Text(
@@ -119,7 +229,7 @@ class _DashboardState extends State<Dashboard> {
           style: TextStyle(
             fontSize: 25,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
         actions: [
@@ -129,7 +239,7 @@ class _DashboardState extends State<Dashboard> {
               padding: const EdgeInsets.only(right: 15.0),
               child: NotificationBadge(
                 child: CircleAvatar(
-                  backgroundColor: Color(0xFF1E293B),
+                  backgroundColor: buttonColor,
                   child: FaIcon(
                     FontAwesomeIcons.bell,
                     color: Colors.white,
@@ -144,13 +254,14 @@ class _DashboardState extends State<Dashboard> {
             child: Padding(
               padding: const EdgeInsets.only(right: 15.0),
               child: CircleAvatar(
-                backgroundColor: Color(0xFF1E293B),
- backgroundImage: profileImagePath.isNotEmpty
-      ? FileImage(File(profileImagePath))
-      : null,
-  child: profileImagePath.isEmpty
-      ? Icon(Icons.person, color: Colors.grey)
-      : null,              ),
+                backgroundColor: buttonColor,
+                backgroundImage: profileImagePath.isNotEmpty
+                    ? FileImage(File(profileImagePath))
+                    : null,
+                child: profileImagePath.isEmpty
+                    ? Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
             ),
           ),
         ],
@@ -165,22 +276,14 @@ class _DashboardState extends State<Dashboard> {
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height * 0.12,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(252, 242, 232, 1),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(5),
                   border: Border(
-                    left: BorderSide(color: Colors.black, width: 0.4),
-                    right: BorderSide(color: Colors.black, width: 0.4),
+                    left: BorderSide(color: borderColor, width: 0.4),
+                    right: BorderSide(color: borderColor, width: 0.4),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                 ),
-
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10.0, bottom: 10),
                   child: Column(
@@ -191,19 +294,20 @@ class _DashboardState extends State<Dashboard> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
+                            color: textColor,
                           ),
                         ),
                       ),
                       Center(
                         child: Text(
                           "Let's make today productive and",
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
                       Center(
                         child: Text(
                           "achieve your goals",
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
                     ],
@@ -220,20 +324,13 @@ class _DashboardState extends State<Dashboard> {
                       height: MediaQuery.of(context).size.height * 0.16,
                       width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
-                        color: Color.fromRGBO(252, 242, 232, 1),
+                        color: cardColor,
                         border: Border(
-                          left: BorderSide(color: Colors.black, width: 0.4),
-                          right: BorderSide(color: Colors.black, width: 0.4),
+                          left: BorderSide(color: borderColor, width: 0.4),
+                          right: BorderSide(color: borderColor, width: 0.4),
                         ),
                         borderRadius: BorderRadius.circular(5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            spreadRadius: 1,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -248,56 +345,52 @@ class _DashboardState extends State<Dashboard> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    color: textColor,
                                   ),
                                 ),
                                 Icon(
                                   Icons.note_alt_outlined,
-                                  color: Color(0xFF1E293B),
+                                  color: isDarkMode ? Colors.lightBlue : Colors.blue,
                                 ),
                               ],
                             ),
-                            SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.005,
-                            ),
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.005),
                             Text(
-                              "3",
+                              "${tasks.length}",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
                             ),
-                            SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.005,
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.005),
+                            Text(
+                              "${tasks.where((task) => task.isChecked).length} completed",
+                              style: TextStyle(fontSize: 15, color: textColor),
                             ),
-
-                            Text("1 completed", style: TextStyle(fontSize: 15)),
-
-                            SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.013,
-                            ),
-
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.013),
                             StepProgressIndicator(
                               totalSteps: 100,
-                              currentStep: 32,
+                              currentStep: tasks.isEmpty
+                                  ? 0
+                                  : (tasks.where((task) => task.isChecked).length * 100 ~/ tasks.length),
                               size: 8,
                               padding: 0,
-                              selectedColor: Colors.yellow,
-                              unselectedColor: Colors.cyan,
                               roundedEdges: Radius.circular(10),
                               selectedGradientColor: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [Color(0xFF1E293B), Color(0xFF1E293B)],
+                                colors: [
+                                  isDarkMode ? Colors.lightBlue : Colors.blue,
+                                  isDarkMode ? Colors.lightBlue : Colors.blue,
+                                ],
                               ),
                               unselectedGradientColor: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.grey.shade300,
-                                  Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                                 ],
                               ),
                             ),
@@ -310,20 +403,13 @@ class _DashboardState extends State<Dashboard> {
                       height: MediaQuery.of(context).size.height * 0.16,
                       width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
-                        color: Color.fromRGBO(252, 242, 232, 1),
+                        color: cardColor,
                         border: Border(
-                          left: BorderSide(color: Colors.black, width: 0.4),
-                          right: BorderSide(color: Colors.black, width: 0.4),
+                          left: BorderSide(color: borderColor, width: 0.4),
+                          right: BorderSide(color: borderColor, width: 0.4),
                         ),
                         borderRadius: BorderRadius.circular(5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            spreadRadius: 1,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -338,9 +424,9 @@ class _DashboardState extends State<Dashboard> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    color: textColor,
                                   ),
                                 ),
-
                                 FaIcon(
                                   FontAwesomeIcons.clock,
                                   color: Colors.green,
@@ -348,33 +434,28 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.005,
+                              height: MediaQuery.of(context).size.height * 0.005,
                             ),
-
                             Text(
                               "7 days",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
                             ),
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.005,
+                              height: MediaQuery.of(context).size.height * 0.005,
                             ),
-                            Text("1 completed", style: TextStyle(fontSize: 15)),
+                            Text("1 completed", style: TextStyle(fontSize: 15, color: textColor)),
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.013,
+                              height: MediaQuery.of(context).size.height * 0.013,
                             ),
                             StepProgressIndicator(
                               totalSteps: 100,
                               currentStep: 74,
                               size: 8,
                               padding: 0,
-                              // selectedColor: Colors.yellow,
-                              // unselectedColor: Colors.cyan,
                               roundedEdges: Radius.circular(10),
                               selectedGradientColor: LinearGradient(
                                 begin: Alignment.topLeft,
@@ -385,8 +466,8 @@ class _DashboardState extends State<Dashboard> {
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.grey.shade300,
-                                  Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                                 ],
                               ),
                             ),
@@ -399,20 +480,13 @@ class _DashboardState extends State<Dashboard> {
                       height: MediaQuery.of(context).size.height * 0.165,
                       width: MediaQuery.of(context).size.width / 2,
                       decoration: BoxDecoration(
-                        color: Color.fromRGBO(252, 242, 232, 1),
+                        color: cardColor,
                         border: Border(
-                          left: BorderSide(color: Colors.black, width: 0.4),
-                          right: BorderSide(color: Colors.black, width: 0.4),
+                          left: BorderSide(color: borderColor, width: 0.4),
+                          right: BorderSide(color: borderColor, width: 0.4),
                         ),
                         borderRadius: BorderRadius.circular(5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            spreadRadius: 1,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
@@ -427,6 +501,7 @@ class _DashboardState extends State<Dashboard> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    color: textColor,
                                   ),
                                 ),
                                 FaIcon(
@@ -438,35 +513,29 @@ class _DashboardState extends State<Dashboard> {
                             SizedBox(
                               height: MediaQuery.of(context).size.height * 0.03,
                             ),
-
                             Text(
                               "3",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
                             ),
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.007,
+                              height: MediaQuery.of(context).size.height * 0.007,
                             ),
-
                             Text(
                               "6 more to unlock",
-                              style: TextStyle(fontSize: 15),
+                              style: TextStyle(fontSize: 15, color: textColor),
                             ),
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.013,
+                              height: MediaQuery.of(context).size.height * 0.013,
                             ),
-
                             StepProgressIndicator(
                               totalSteps: 100,
                               currentStep: 74,
                               size: 8,
                               padding: 0,
-                              // selectedColor: Colors.yellow,
-                              // unselectedColor: Colors.cyan,
                               roundedEdges: Radius.circular(10),
                               selectedGradientColor: LinearGradient(
                                 begin: Alignment.topLeft,
@@ -477,8 +546,8 @@ class _DashboardState extends State<Dashboard> {
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.grey.shade300,
-                                  Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                                  isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                                 ],
                               ),
                             ),
@@ -495,15 +564,14 @@ class _DashboardState extends State<Dashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Today's Tasks",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    "Today's tasks",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                   ),
-
                   CustomButton(
                     ontap: _showAddTaskDialog,
                     data: "+",
                     textcolor: Colors.white,
-                    backgroundcolor: Color(0xFF1E293B),
+                    backgroundcolor: buttonColor,
                     width: 40,
                     height: 30,
                   ),
@@ -512,102 +580,181 @@ class _DashboardState extends State<Dashboard> {
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
               tasks.isEmpty
                   ? Center(
-                    child: Text(
-                      "No tasks available",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
+                      child: Text(
+                        "No tasks available",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-                  )
+                    )
                   : Column(
-                    children:
-                        tasks.asMap().entries.map((entry) {
-                          int index = entry.key;
-                          Task task = entry.value;
-                          return TaskCard(
-                            title: task.title,
-                            category: task.category,
-                            time: task.time,
-                            icon: task.icon,
-                            isChecked: task.isChecked,
-                            onChanged: (val) {
-                              setState(() {
-                                task.isChecked = val ?? false;
-                                if (task.isChecked) {
-                                  NotificationService.showToast(
-                                    context,
-                                    "Task Completed",
-                                    "You've completed '${task.title}'",
+                      children: tasks.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        Task task = entry.value;
+                        return TaskCard(
+                          title: task.title,
+                          category: task.category,
+                          time: task.time,
+                          icon: task.icon,
+                          isChecked: task.isChecked,
+                          backgroundColor: cardColor,
+                          textColor: textColor,
+                          borderColor: borderColor,
+                          onChanged: (val) {
+                            final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                            final today = DateTime(
+                              DateTime.now().year,
+                              DateTime.now().month,
+                              DateTime.now().day,
+                            );
+
+                            setState(() {
+                              task.isChecked = val ?? false;
+
+                              // Find and update the task in TaskProvider
+                              final tasks = taskProvider.tasks[today] ?? [];
+                              for (int i = 0; i < tasks.length; i++) {
+                                if (tasks[i].title == task.title && tasks[i].time == task.time) {
+                                  // Create updated model task
+                                  final updatedModelTask = model.Task(
+                                    title: task.title,
+                                    category: task.category,
+                                    time: task.time,
+                                    color: tasks[i].color, // Keep existing color
+                                    icon: tasks[i].icon, // Keep existing icon
+                                    isChecked: val ?? false,
                                   );
+
+                                  // Update in provider
+                                  taskProvider.editTask(today, tasks[i], updatedModelTask);
+                                  break;
                                 }
-                              });
-                            },
-                            onEdit: () {
-                              showTaskDialog(
-                                context: context,
-                                dialogTitle: "Edit Task",
-                                initialTitle: task.title,
-                                initialCategory: task.category,
-                                initialTime: task.time,
-                                onSubmit: (title, category, time) {
-                                  setState(() {
-                                    String oldTitle = task.title;
+                              }
 
-                                    task.title = title;
-                                    task.category = category;
-                                    task.time = time;
-                                    NotificationService.showToast(
-                                      context,
-                                      "Task Updated",
-                                      "'$oldTitle' has been updated",
+                              if (task.isChecked) {
+                                NotificationService.showToast(
+                                  context,
+                                  "Task Completed",
+                                  "You've completed '${task.title}'",
+                                );
+                              }
+                            });
+                          },
+                          onEdit: () {
+                            final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                            final today = DateTime(
+                              DateTime.now().year,
+                              DateTime.now().month,
+                              DateTime.now().day,
+                            );
+
+                            showTaskDialog(
+                              context: context,
+                              dialogTitle: "Edit Task",
+                              initialTitle: task.title,
+                              initialCategory: task.category,
+                              initialTime: task.time,
+                              onSubmit: (title, category, time) {
+                                // Store original title for notification
+                                String oldTitle = task.title;
+
+                                // Update local task
+                                setState(() {
+                                  task.title = title;
+                                  task.category = category;
+                                  task.time = time;
+                                });
+
+                                // Find and update the task in TaskProvider
+                                final tasks = taskProvider.tasks[today] ?? [];
+                                for (int i = 0; i < tasks.length; i++) {
+                                  if (tasks[i].title == oldTitle) {
+                                    // Create updated model task
+                                    final updatedModelTask = model.Task(
+                                      title: title,
+                                      category: category,
+                                      time: time,
+                                      color: tasks[i].color, // Keep existing color
+                                      icon: categoryIcons[category] ?? tasks[i].icon, // Update icon based on category
+                                      isChecked: task.isChecked,
                                     );
-                                  });
-                                },
-                              );
-                            },
-                            onDelete: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text("Delete Task"),
-                                    content: Text(
-                                      "Are you sure you want to delete ${task.title}?",
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed:
-                                            () => Navigator.of(context).pop(),
-                                        child: Text("Cancel"),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          String deletedTaskTitle = task.title;
 
-                                          setState(() {
-                                            tasks.removeAt(index);
-                                          });
-                                          Navigator.of(context).pop();
-                                          NotificationService.showToast(
-                                            context,
-                                            "Task Deleted",
-                                            "'$deletedTaskTitle' has been removed",
-                                          );
-                                        },
-                                        child: Text(
-                                          "Delete",
-                                          style: TextStyle(color: Colors.red),
-                                        ),
+                                    // Update in provider
+                                    taskProvider.editTask(today, tasks[i], updatedModelTask);
+                                    break;
+                                  }
+                                }
+
+                                NotificationService.showToast(
+                                  context,
+                                  "Task Updated",
+                                  "'$oldTitle' has been updated",
+                                );
+                              },
+                            );
+                          },
+                          onDelete: () {
+                            final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                            final today = DateTime(
+                              DateTime.now().year,
+                              DateTime.now().month,
+                              DateTime.now().day,
+                            );
+
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text("Delete Task"),
+                                  content: Text(
+                                    "Are you sure you want to delete ${task.title}?",
+                                    style: TextStyle(color: textColor),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: Text("Cancel", style: TextStyle(color: textColor)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        String deletedTaskTitle = task.title;
+
+                                        // Remove from local tasks list
+                                        setState(() {
+                                          tasks.removeAt(index);
+                                        });
+
+                                        // Remove from TaskProvider
+                                        final providerTasks = taskProvider.tasks[today] ?? [];
+                                        for (var providerTask in providerTasks) {
+                                          if (providerTask.title == deletedTaskTitle) {
+                                            taskProvider.deleteTask(today, providerTask);
+                                            break;
+                                          }
+                                        }
+
+                                        Navigator.of(context).pop();
+                                        NotificationService.showToast(
+                                          context,
+                                          "Task Deleted",
+                                          "'$deletedTaskTitle' has been removed",
+                                        );
+                                      },
+                                      child: Text(
+                                        "Delete",
+                                        style: TextStyle(color: Colors.red),
                                       ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        }).toList(),
-                  ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
             ],
           ),
         ),

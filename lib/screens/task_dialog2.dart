@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otakuplanner/themes/theme.dart'; // Add this import
 
 typedef OnSubmit = void Function(String title, String category, String time);
 
@@ -42,28 +43,70 @@ void showTaskDialog({
   String? initialTime,
   required OnSubmit onSubmit,
 }) {
-  final TextEditingController titleController = TextEditingController(text: initialTitle ?? '');
-  final List<String> categories = ["Work", "Study", "Coding", "Personal"]; 
+  final TextEditingController titleController = TextEditingController(
+    text: initialTitle ?? '',
+  );
+  final List<String> categories = ["Work", "Study", "Coding", "Personal"];
   String? selectedCategory = initialCategory;
   String? selectedTime = initialTime;
 
   showDialog(
     context: context,
     builder: (context) {
+      // Get theme colors
+      final cardColor = OtakuPlannerTheme.getCardColor(context);
+      final textColor = OtakuPlannerTheme.getTextColor(context);
+      final borderColor = OtakuPlannerTheme.getBorderColor(context);
+      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text(dialogTitle),
+            backgroundColor: cardColor,
+            title: Text(dialogTitle, style: TextStyle(color: textColor)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleController,
-                  decoration: InputDecoration(labelText: "Title"),
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: "Title",
+                    labelStyle: TextStyle(color: textColor.withOpacity(0.8)),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: borderColor),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                      ),
+                    ),
+                  ),
                 ),
                 DropdownButtonFormField<String>(
-                  decoration: InputDecoration(labelText: "Category"),
+                  decoration: InputDecoration(
+                    labelText: "Category",
+                    labelStyle: TextStyle(color: textColor.withOpacity(0.8)),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: borderColor),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                      ),
+                    ),
+                  ),
                   value: selectedCategory,
+                  dropdownColor: OtakuPlannerTheme.getDropdownBackgroundColor(
+                    context,
+                  ),
+                  style: TextStyle(
+                    color: OtakuPlannerTheme.getDropdownItemColor(context),
+                  ),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: OtakuPlannerTheme.getDropdownIconColor(context),
+                  ),
                   items: [
                     ...categories.map((category) {
                       return DropdownMenuItem(
@@ -78,11 +121,13 @@ void showTaskDialog({
                   ],
                   onChanged: (value) async {
                     if (value == "Create New Category") {
-                      final newCategory = await showCreateCategoryDialog(context);
+                      final newCategory = await showCreateCategoryDialog(
+                        context,
+                      );
                       if (newCategory != null && newCategory.isNotEmpty) {
                         setState(() {
-                          categories.add(newCategory); // Add the new category to the list
-                          selectedCategory = newCategory; // Set it as the selected category
+                          categories.add(newCategory);
+                          selectedCategory = newCategory;
                         });
                       }
                     } else {
@@ -94,10 +139,13 @@ void showTaskDialog({
                 ),
                 SizedBox(height: 16),
                 ListTile(
-                  leading: Icon(Icons.access_time),
-                  title: Text(selectedTime != null
-                      ? "Time: $selectedTime"
-                      : "Select Time"),
+                  leading: Icon(Icons.access_time, color: textColor),
+                  title: Text(
+                    selectedTime != null
+                        ? "Time: $selectedTime"
+                        : "Select Time",
+                    style: TextStyle(color: textColor),
+                  ),
                   onTap: () async {
                     final pickedTime = await showTimePicker(
                       context: context,
@@ -105,7 +153,7 @@ void showTaskDialog({
                     );
                     if (pickedTime != null) {
                       setState(() {
-                        selectedTime = pickedTime.format(context); // Convert TimeOfDay to String
+                        selectedTime = pickedTime.format(context);
                       });
                     }
                   },
@@ -115,7 +163,12 @@ void showTaskDialog({
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                  ),
+                ),
               ),
               TextButton(
                 onPressed: () {
@@ -137,7 +190,12 @@ void showTaskDialog({
                     Navigator.pop(context);
                   }
                 },
-                child: Text('OK'),
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                  ),
+                ),
               ),
             ],
           );

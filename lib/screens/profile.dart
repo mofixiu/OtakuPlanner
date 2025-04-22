@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
+// import 'package:intl/intl.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/editProfile.dart';
+import 'package:otakuplanner/themes/theme.dart'; // Add theme import
 import 'package:otakuplanner/widgets/customButtonwithSmallerTextandanIcon.dart';
 import 'package:provider/provider.dart';
 
@@ -25,8 +26,16 @@ class _ProfileState extends State<Profile> {
 
   @override
   Widget build(BuildContext context) {
-    final profileImagePath =
-        Provider.of<UserProvider>(context).profileImagePath;
+    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+
+    // Get theme-specific colors
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    // final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    final boxShadow = OtakuPlannerTheme.getBoxShadow(context);
+
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.only(top: 50, left: 30.0, right: 30),
@@ -41,7 +50,7 @@ class _ProfileState extends State<Profile> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: textColor,
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
@@ -49,21 +58,9 @@ class _ProfileState extends State<Profile> {
                 height: MediaQuery.of(context).size.height / 3.5,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -81,14 +78,14 @@ class _ProfileState extends State<Profile> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                              color: textColor,
                             ),
                           ),
                           CustomButton(
                             ontap: editProfile,
                             data: "Edit Profile",
                             textcolor: Colors.white,
-                            backgroundcolor: Color(0xFF1E293B),
+                            backgroundcolor: buttonColor,
                             width: 100,
                             height: 30,
                             icon: Icons.edit,
@@ -97,16 +94,15 @@ class _ProfileState extends State<Profile> {
                       ),
                       CircleAvatar(
                         radius: 40,
-                        backgroundColor: Color(0xFF1E293B),
+                        backgroundColor: buttonColor,
                         backgroundImage:
                             profileImagePath.isNotEmpty
                                 ? FileImage(File(profileImagePath))
                                 : null,
-                            child:
+                        child:
                             profileImagePath.isEmpty
                                 ? Icon(Icons.person, color: Colors.grey)
                                 : null,
-                        // backgroundImage: AssetImage("assets/images/otaku.jpg"),
                       ),
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.025,
@@ -116,19 +112,18 @@ class _ProfileState extends State<Profile> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: textColor.withOpacity(0.6),
                         ),
                       ),
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.005,
                       ),
-
                       Text(
                         'User Name Placeholder',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(
@@ -139,18 +134,17 @@ class _ProfileState extends State<Profile> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: textColor.withOpacity(0.6),
                         ),
                       ),
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.005,
                       ),
-
                       Text(
                         'user@email.com',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                     ],
@@ -158,26 +152,13 @@ class _ProfileState extends State<Profile> {
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.015),
-
               Container(
                 height: MediaQuery.of(context).size.height / 4,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -192,7 +173,7 @@ class _ProfileState extends State<Profile> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(
@@ -202,12 +183,7 @@ class _ProfileState extends State<Profile> {
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              132,
-                              190,
-                              237,
-                            ),
+                            backgroundColor: isDarkMode ? Colors.blueGrey.shade700 : const Color.fromARGB(255, 132, 190, 237),
                             child: FaIcon(
                               FontAwesomeIcons.person,
                               color: Colors.blue,
@@ -221,7 +197,7 @@ class _ProfileState extends State<Profile> {
                                 'Username',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -229,26 +205,19 @@ class _ProfileState extends State<Profile> {
                                 '@user',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.02,
-                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              99,
-                              186,
-                              101,
-                            ),
+                            backgroundColor: isDarkMode ? Colors.green.shade900 : const Color.fromARGB(255, 99, 186, 101),
                             child: FaIcon(
                               FontAwesomeIcons.calendar,
                               color: Colors.green,
@@ -262,7 +231,7 @@ class _ProfileState extends State<Profile> {
                                 'Join Date',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -270,21 +239,23 @@ class _ProfileState extends State<Profile> {
                                 'DD-MM-YYYY',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.02,
-                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            child: FaIcon(FontAwesomeIcons.listCheck),
+                            backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                            child: FaIcon(
+                              FontAwesomeIcons.listCheck,
+                              color: isDarkMode ? Colors.white : Colors.black54,
+                            ),
                           ),
                           SizedBox(width: 10),
                           Column(
@@ -294,7 +265,7 @@ class _ProfileState extends State<Profile> {
                                 'Completed Tasks',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -302,7 +273,7 @@ class _ProfileState extends State<Profile> {
                                 '4',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
@@ -314,26 +285,13 @@ class _ProfileState extends State<Profile> {
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.015),
-
               Container(
                 height: MediaQuery.of(context).size.height / 3,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -348,22 +306,15 @@ class _ProfileState extends State<Profile> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.016,
-                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.016),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              223,
-                              157,
-                              59,
-                            ),
+                            backgroundColor: isDarkMode ? Colors.orange.shade900 : const Color.fromARGB(255, 223, 157, 59),
                             child: FaIcon(
                               FontAwesomeIcons.arrowTrendUp,
                               color: const Color.fromARGB(255, 168, 124, 56),
@@ -377,7 +328,7 @@ class _ProfileState extends State<Profile> {
                                 'Longest Streak',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -385,26 +336,19 @@ class _ProfileState extends State<Profile> {
                                 'X Days',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.02,
-                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              244,
-                              179,
-                              241,
-                            ),
+                            backgroundColor: isDarkMode ? Colors.purple.shade900 : const Color.fromARGB(255, 244, 179, 241),
                             child: FaIcon(
                               FontAwesomeIcons.chartBar,
                               color: Colors.purple,
@@ -418,7 +362,7 @@ class _ProfileState extends State<Profile> {
                                 'Most Productive Day',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -426,26 +370,19 @@ class _ProfileState extends State<Profile> {
                                 'TestDay',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.02,
-                      ),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              239,
-                              187,
-                              204,
-                            ),
+                            backgroundColor: isDarkMode ? Colors.pink.shade900 : const Color.fromARGB(255, 239, 187, 204),
                             child: FaIcon(
                               FontAwesomeIcons.tag,
                               color: Colors.pink,
@@ -459,7 +396,7 @@ class _ProfileState extends State<Profile> {
                                 'Top Categories',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -469,18 +406,8 @@ class _ProfileState extends State<Profile> {
                                     height: 20,
                                     width: 50,
                                     decoration: BoxDecoration(
-                                      color: const Color.fromARGB(
-                                        255,
-                                        155,
-                                        201,
-                                        239,
-                                      ),
-                                      borderRadius: BorderRadius.only(
-                                        bottomLeft: Radius.circular(20),
-                                        bottomRight: Radius.circular(20),
-                                        topLeft: Radius.circular(20),
-                                        topRight: Radius.circular(20),
-                                      ),
+                                      color: isDarkMode ? Colors.blueGrey.shade700 : const Color.fromARGB(255, 155, 201, 239),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Center(
                                       child: Text(
@@ -494,18 +421,8 @@ class _ProfileState extends State<Profile> {
                                     height: 20,
                                     width: 50,
                                     decoration: BoxDecoration(
-                                      color: const Color.fromARGB(
-                                        255,
-                                        155,
-                                        201,
-                                        239,
-                                      ),
-                                      borderRadius: BorderRadius.only(
-                                        bottomLeft: Radius.circular(20),
-                                        bottomRight: Radius.circular(20),
-                                        topLeft: Radius.circular(20),
-                                        topRight: Radius.circular(20),
-                                      ),
+                                      color: isDarkMode ? Colors.blueGrey.shade700 : const Color.fromARGB(255, 155, 201, 239),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Center(
                                       child: Text(
@@ -519,18 +436,8 @@ class _ProfileState extends State<Profile> {
                                     height: 20,
                                     width: 80,
                                     decoration: BoxDecoration(
-                                      color: const Color.fromARGB(
-                                        255,
-                                        155,
-                                        201,
-                                        239,
-                                      ),
-                                      borderRadius: BorderRadius.only(
-                                        bottomLeft: Radius.circular(20),
-                                        bottomRight: Radius.circular(20),
-                                        topLeft: Radius.circular(20),
-                                        topRight: Radius.circular(20),
-                                      ),
+                                      color: isDarkMode ? Colors.blueGrey.shade700 : const Color.fromARGB(255, 155, 201, 239),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Center(
                                       child: Text(
@@ -545,15 +452,12 @@ class _ProfileState extends State<Profile> {
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.02,
-                      ),
-
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: Colors.yellow.withOpacity(0.2),
+                            backgroundColor: isDarkMode ? Colors.yellow.shade900 : Colors.yellow.withOpacity(0.2),
                             child: FaIcon(
                               FontAwesomeIcons.tag,
                               color: const Color.fromARGB(255, 131, 121, 33),
@@ -567,7 +471,7 @@ class _ProfileState extends State<Profile> {
                                 'Achievements Unlocked',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: textColor.withOpacity(0.6),
                                 ),
                               ),
                               SizedBox(height: 1),
@@ -575,7 +479,7 @@ class _ProfileState extends State<Profile> {
                                 '12/30',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],

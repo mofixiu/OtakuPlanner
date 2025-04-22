@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:otakuplanner/entryScreens/SetUpPage1.dart';
-import 'package:otakuplanner/entryScreens/forgotPassword.dart';
-import 'package:otakuplanner/entryScreens/signup.dart';
+import 'package:otakuplanner/screens/entryScreens/SetUpPage1.dart';
+import 'package:otakuplanner/screens/entryScreens/forgotPassword.dart';
+import 'package:otakuplanner/screens/entryScreens/signup.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/widgets/customButton.dart';
 import 'package:provider/provider.dart';

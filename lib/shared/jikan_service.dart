@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:math';
+// import 'dart:math';
 import 'package:http/http.dart' as http;
-import 'package:connectivity_plus/connectivity_plus.dart';
+// import 'package:connectivity_plus/connectivity_plus.dart';
 
 
 // class JikanService {
@@ -30,9 +30,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 //   }
 // }
 class JikanService {
-  Future<Map<String, dynamic>?> fetchRandomCharacter() async {
-    // Already works
-  }
+  // Future<Map<String, dynamic>?> fetchRandomCharacter() async {
+  //   // Already works
+  // }
 
   // 🔥 Add this method to fetch characters
   Future<List<Map<String, dynamic>>> fetchCharacters() async {

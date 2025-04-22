@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:otakuplanner/screens/calendar.dart';
+// Change this import to use the model Task instead of calendar Task
+import 'package:otakuplanner/models/task.dart';
 
 class TaskProvider with ChangeNotifier {
   final Map<DateTime, List<Task>> _tasks = {};
@@ -7,29 +8,31 @@ class TaskProvider with ChangeNotifier {
   Map<DateTime, List<Task>> get tasks => _tasks;
 
   void addTask(DateTime date, Task task) {
-    if (_tasks[date] == null) {
-      _tasks[date] = [];
-    }
-    _tasks[date]!.add(task);
-    notifyListeners();
-  }
-
-  void deleteTask(DateTime date, Task task) {
-    _tasks[date]?.remove(task);
-    if (_tasks[date]?.isEmpty ?? false) {
-      _tasks.remove(date);
+    if (_tasks.containsKey(date)) {
+      _tasks[date]!.add(task);
+    } else {
+      _tasks[date] = [task];
     }
     notifyListeners();
   }
 
   void editTask(DateTime date, Task oldTask, Task newTask) {
-    if (_tasks[date] != null) {
-      final taskIndex = _tasks[date]!.indexOf(oldTask);
-      if (taskIndex != -1) {
-        _tasks[date]![taskIndex] = newTask;
-        notifyListeners();
+    if (_tasks.containsKey(date)) {
+      final index = _tasks[date]!.indexWhere((t) => 
+        t.title == oldTask.title && t.time == oldTask.time);
+      if (index != -1) {
+        _tasks[date]![index] = newTask;
       }
     }
+    notifyListeners();
+  }
+
+  void deleteTask(DateTime date, Task task) {
+    if (_tasks.containsKey(date)) {
+      _tasks[date]!.removeWhere((t) => 
+        t.title == task.title && t.time == task.time);
+    }
+    notifyListeners();
   }
 
   List<Task> getTasksByCategory(String category) {
