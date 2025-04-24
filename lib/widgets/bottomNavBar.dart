@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:otakuplanner/screens/achievements.dart';
-import 'package:otakuplanner/screens/calendar.dart';
-import 'package:otakuplanner/screens/dashboard.dart';
-import 'package:otakuplanner/screens/settings.dart';
-import 'package:otakuplanner/screens/tasks.dart';
+import 'package:otakuplanner/screens/normalMode/achievements.dart';
+import 'package:otakuplanner/screens/normalMode/calendar.dart';
+import 'package:otakuplanner/screens/normalMode/dashboard.dart';
+import 'package:otakuplanner/screens/normalMode/settings.dart';
+import 'package:otakuplanner/screens/normalMode/tasks.dart';
 import 'package:otakuplanner/themes/theme.dart'; // Add this import
 
 class BottomNavBar extends StatelessWidget {

@@ -4,13 +4,25 @@ import 'package:otakuplanner/screens/entryScreens/loginPage.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/screens/dashboard.dart';
+import 'package:otakuplanner/screens/normalMode/dashboard.dart';
+import 'package:otakuplanner/shared/quote_service.dart';
 import 'package:provider/provider.dart';
 import 'package:splash_view/splash_view.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/themes/theme.dart'; // Add this import
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+   SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  // Create and register the global notification service
+  final notificationService = NotificationService();
+  notificationService.registerAsGlobal();
+  QuoteService.initializeQuotes();
+
+
   runApp(
     MultiProvider(
       providers: [
@@ -33,7 +45,10 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     return MaterialApp(
+      
       debugShowCheckedModeBanner: false,
+      
+      scaffoldMessengerKey: rootScaffoldMessengerKey,  // Add this lin
       title: 'Thriller',
       theme: OtakuPlannerTheme.lightTheme,
       darkTheme: OtakuPlannerTheme.darkTheme,

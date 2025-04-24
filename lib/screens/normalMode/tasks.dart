@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/screens/profile.dart';
+import 'package:otakuplanner/screens/normalMode/profile.dart';
+import 'package:otakuplanner/screens/normalMode/task_automation.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/themes/theme.dart'; // Add theme import
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
@@ -32,11 +33,28 @@ class _TasksState extends State<Tasks> {
   // Track the selected category
   String _selectedCategory = "All";
 
+  void _navigateToTaskAutomation() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskAutomation(),
+      ),
+    ).then((wasTaskCreated) {
+      // Refresh the task list if tasks were created
+      if (wasTaskCreated == true) {
+        setState(() {
+          // This will refresh the UI to show any new tasks
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context);
-    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
-    
+    final profileImagePath =
+        Provider.of<UserProvider>(context).profileImagePath;
+
     // Get theme-specific colors
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = OtakuPlannerTheme.getCardColor(context);
@@ -44,7 +62,24 @@ class _TasksState extends State<Tasks> {
     final borderColor = OtakuPlannerTheme.getBorderColor(context);
     final buttonColor = OtakuPlannerTheme.getButtonColor(context);
 
-    final allTasks = taskProvider.tasks.values.expand((tasks) => tasks).toList();
+    // Create a list of unique tasks, making sure recurring tasks only appear once
+    final List<dynamic> allTasks = [];
+    final Set<String> addedRecurringTaskTitles = {}; // Track added recurring tasks by title
+
+    taskProvider.tasks.values.forEach((tasksList) {
+      for (var task in tasksList) {
+        // For recurring tasks, check if we already added one with the same title
+        if (task.isRecurring == true) {
+          if (!addedRecurringTaskTitles.contains(task.title)) {
+            addedRecurringTaskTitles.add(task.title);
+            allTasks.add(task);
+          }
+        } else {
+          // For non-recurring tasks, add all instances
+          allTasks.add(task);
+        }
+      }
+    });
 
     final filteredTasks =
         _selectedCategory == "All"
@@ -52,7 +87,7 @@ class _TasksState extends State<Tasks> {
             : allTasks
                 .where((task) => task.category == _selectedCategory)
                 .toList();
-    
+
     void _showNotificationsDialog() {
       showDialog(
         context: context,
@@ -100,12 +135,14 @@ class _TasksState extends State<Tasks> {
               padding: const EdgeInsets.only(right: 15.0),
               child: CircleAvatar(
                 backgroundColor: buttonColor,
-                backgroundImage: profileImagePath.isNotEmpty
-                    ? FileImage(File(profileImagePath))
-                    : null,
-                child: profileImagePath.isEmpty
-                    ? Icon(Icons.person, color: Colors.grey)
-                    : null,
+                backgroundImage:
+                    profileImagePath.isNotEmpty
+                        ? FileImage(File(profileImagePath))
+                        : null,
+                child:
+                    profileImagePath.isEmpty
+                        ? Icon(Icons.person, color: Colors.grey)
+                        : null,
               ),
             ),
           ),
@@ -133,7 +170,9 @@ class _TasksState extends State<Tasks> {
                   ),
                 ),
                 CustomButton(
-                  ontap: () {},
+                  ontap: () {
+                    _navigateToTaskAutomation();
+                  },
                   data: "+ Automate Task",
                   textcolor: Colors.white,
                   backgroundcolor: buttonColor,
@@ -142,7 +181,6 @@ class _TasksState extends State<Tasks> {
                 ),
               ],
             ),
-
             SizedBox(height: MediaQuery.of(context).size.height * 0.03),
             Wrap(
               spacing: 8.0, // Horizontal spacing between items
@@ -163,26 +201,26 @@ class _TasksState extends State<Tasks> {
                           horizontal: 15,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected 
-                              ? buttonColor 
-                              : isDarkMode 
-                                  ? OtakuPlannerTheme.darkCardBackground 
+                          color:
+                              isSelected
+                                  ? buttonColor
+                                  : isDarkMode
+                                  ? OtakuPlannerTheme.darkCardBackground
                                   : Colors.white,
                           border: Border.all(
                             color: borderColor.withOpacity(0.5),
                             width: 1,
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: isSelected 
-                              ? [OtakuPlannerTheme.getBoxShadow(context)] 
-                              : null,
+                          boxShadow:
+                              isSelected
+                                  ? [OtakuPlannerTheme.getBoxShadow(context)]
+                                  : null,
                         ),
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: isSelected 
-                                ? Colors.white 
-                                : textColor,
+                            color: isSelected ? Colors.white : textColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -198,7 +236,7 @@ class _TasksState extends State<Tasks> {
                         child: Text(
                           "No tasks available for this category.",
                           style: TextStyle(
-                            fontSize: 16, 
+                            fontSize: 16,
                             color: textColor.withOpacity(0.7),
                           ),
                         ),
@@ -219,7 +257,7 @@ class _TasksState extends State<Tasks> {
                             ),
                             child: ListTile(
                               leading: Icon(
-                                task.icon ?? Icons.task, 
+                                task.icon ?? Icons.task,
                                 color: task.color,
                               ),
                               title: Text(
@@ -229,12 +267,31 @@ class _TasksState extends State<Tasks> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              subtitle: Text(
-                                "${task.category} - ${task.time}",
-                                style: TextStyle(
-                                  color: textColor.withOpacity(0.7),
-                                ),
-                              ),
+                       subtitle: Text(
+  (() {
+    String dateInfo = "";
+    // Add null check for isRecurring property
+    bool isRecurring = task.isRecurring ?? false;  // Use ?? to provide a default
+    
+    if (isRecurring) {
+      // For recurring tasks, show "Recurring" instead of date
+      dateInfo = " • Recurring";
+    } else {
+      // For normal tasks, show the date
+      taskProvider.tasks.forEach((date, taskList) {
+        if (taskList.contains(task)) {
+          dateInfo = " • ${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
+        }
+      });
+    }
+
+    // Return the formatted subtitle
+    return "${task.category} - ${task.time}$dateInfo";
+  })(),
+  style: TextStyle(
+    color: textColor.withOpacity(0.7),
+  ),
+),
                             ),
                           );
                         },

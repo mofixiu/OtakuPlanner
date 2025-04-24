@@ -98,26 +98,38 @@ class NotificationService extends ChangeNotifier {
     _globalNotificationService?.addNotification(title, message);
   }
 
-  // Update the static showToast method to use theme colors
+  // Update the static showToast method to never use context that might be disposed
   static void showToast(BuildContext? context, String title, String message) {
-    // Add to notification list
+    // Add to notification list first (this can still use context safely)
     addGlobalNotification(context, title, message);
     
     // Get theme-aware colors if context is available
     Color snackBarColor;
     Color textColor = Colors.white;
     
-    if (context != null) {
-      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-      
-      // Use theme-aware colors
-      if (title.contains('Completed')) {
-        snackBarColor = isDarkMode ? Colors.green.shade700 : Colors.green;
+    // Store context reference before any async operations
+    BuildContext? safeContext = context;
+    bool contextIsValid = safeContext != null;
+    bool isDarkMode = false;
+    
+    // Try to read theme info immediately (not in a future)
+    try {
+      if (contextIsValid) {
+        isDarkMode = Theme.of(safeContext!).brightness == Brightness.dark;
+        
+        // Use theme-aware colors
+        if (title.contains('Completed')) {
+          snackBarColor = isDarkMode ? Colors.green.shade700 : Colors.green;
+        } else {
+          snackBarColor = OtakuPlannerTheme.getButtonColor(safeContext);
+        }
       } else {
-        snackBarColor = OtakuPlannerTheme.getButtonColor(context);
+        // Fallback colors if no context
+        snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
       }
-    } else {
-      // Fallback colors if no context
+    } catch (e) {
+      // If any error occurs reading the context, use fallback colors
+      contextIsValid = false;
       snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
     }
     
@@ -152,18 +164,28 @@ class NotificationService extends ChangeNotifier {
         borderRadius: BorderRadius.circular(8),
       ),
     );
+//     final scaffoldMessenger = rootScaffoldMessengerKey.currentState;
+// if (scaffoldMessenger == null) {
+//   print("ERROR: ScaffoldMessenger is null! Make sure to set scaffoldMessengerKey in MaterialApp");
+  
+//   // Last resort - try to find any active context to show notification
+//   try {
+//     // Find the most recent navigator to show our snackbar
+//     final navigatorKey = GlobalKey<NavigatorState>();
+//     if (navigatorKey.currentState?.overlay?.context != null) {
+//       ScaffoldMessenger.of(navigatorKey.currentState!.overlay!.context)
+//           .showSnackBar(snackBar);
+//     }
+//   } catch (e) {
+//     print("Couldn't show notification: $e");
+//   }
+// } else {
+//   // Show with our global key
+//   scaffoldMessenger.showSnackBar(snackBar);
+// }
     
-    // Try context first
-    if (context != null) {
-      try {
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        return;
-      } catch (e) {
-        // Context no longer valid, will fall back to global key
-      }
-    }
-    
-    // Fall back to global key
+    // IMPORTANT: Always use the global key instead of context
+    // This ensures we don't use a potentially disposed context
     rootScaffoldMessengerKey.currentState?.showSnackBar(snackBar);
   }
 }

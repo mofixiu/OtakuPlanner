@@ -290,7 +290,7 @@ class _AchievementsState extends State<Achievements> {
       },
       child: Scaffold(
         body: Padding(
-          padding: const EdgeInsets.only(top: 40.0, left: 16.0, right: 16),
+          padding: const EdgeInsets.only(top: 60.0, left: 16.0, right: 16),
           child: Column(
             children: [
               Text(
@@ -301,8 +301,12 @@ class _AchievementsState extends State<Achievements> {
                   color: textColor,
                 ),
               ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.01), 
+
               Expanded(
                 child: ListView.builder(
+                      padding: EdgeInsets.zero,
+
                   itemCount: achievementsData.length,
                   itemBuilder: (context, index) {
                     final achievement = achievementsData[index];

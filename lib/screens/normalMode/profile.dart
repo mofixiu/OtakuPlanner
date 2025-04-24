@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // import 'package:intl/intl.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/screens/editProfile.dart';
+import 'package:otakuplanner/screens/normalMode/editProfile.dart';
 import 'package:otakuplanner/themes/theme.dart'; // Add theme import
 import 'package:otakuplanner/widgets/customButtonwithSmallerTextandanIcon.dart';
 import 'package:provider/provider.dart';

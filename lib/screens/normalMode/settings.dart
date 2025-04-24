@@ -8,7 +8,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/screens/entryScreens/changePassword.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/screens/profile.dart';
+import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButtonWithAnIcon.dart';
