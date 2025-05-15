@@ -6,10 +6,10 @@ import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/screens/normalMode/task_automation.dart';
 import 'package:otakuplanner/shared/notifications.dart';
-import 'package:otakuplanner/themes/theme.dart'; // Add theme import
+import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
-import 'package:otakuplanner/widgets/customButtonSmallerTextSize.dart';
 import 'package:otakuplanner/shared/categories.dart';
+import 'package:otakuplanner/widgets/rounderCustomButton.dart';
 import 'package:provider/provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 
@@ -21,6 +21,30 @@ class Tasks extends StatefulWidget {
 }
 
 class _TasksState extends State<Tasks> {
+  TextEditingController _searchController = TextEditingController();
+  String _searchTerm = "";
+
+  // Add dispose method to clean up the controller
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Add initState to set up listeners
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  // Search changed handler
+  void _onSearchChanged() {
+    setState(() {
+      _searchTerm = _searchController.text.toLowerCase();
+    });
+  }
+
   void profile() {
     Navigator.push(
       context,
@@ -36,9 +60,7 @@ class _TasksState extends State<Tasks> {
   void _navigateToTaskAutomation() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => TaskAutomation(),
-      ),
+      MaterialPageRoute(builder: (context) => TaskAutomation()),
     ).then((wasTaskCreated) {
       // Refresh the task list if tasks were created
       if (wasTaskCreated == true) {
@@ -64,7 +86,8 @@ class _TasksState extends State<Tasks> {
 
     // Create a list of unique tasks, making sure recurring tasks only appear once
     final List<dynamic> allTasks = [];
-    final Set<String> addedRecurringTaskTitles = {}; // Track added recurring tasks by title
+    final Set<String> addedRecurringTaskTitles =
+        {}; // Track added recurring tasks by title
 
     taskProvider.tasks.values.forEach((tasksList) {
       for (var task in tasksList) {
@@ -81,13 +104,29 @@ class _TasksState extends State<Tasks> {
       }
     });
 
+    // final filteredTasks =
+    //     _selectedCategory == "All"
+    //         ? allTasks
+    //         : allTasks
+    //             .where((task) => task.category == _selectedCategory)
+    //             .toList();
     final filteredTasks =
-        _selectedCategory == "All"
-            ? allTasks
-            : allTasks
-                .where((task) => task.category == _selectedCategory)
-                .toList();
+        allTasks.where((task) {
+          // First apply category filter
+          final categoryMatch =
+              _selectedCategory == "All" || task.category == _selectedCategory;
 
+          // Then apply search filter if there's a search term
+          final searchMatch =
+              _searchTerm.isEmpty ||
+              task.title.toLowerCase().contains(_searchTerm) ||
+              task.category.toLowerCase().contains(_searchTerm) ||
+              (task.time != null &&
+                  task.time.toLowerCase().contains(_searchTerm));
+
+          // Task passes filter if it matches both category and search criteria
+          return categoryMatch && searchMatch;
+        }).toList();
     void _showNotificationsDialog() {
       showDialog(
         context: context,
@@ -169,7 +208,7 @@ class _TasksState extends State<Tasks> {
                     color: textColor,
                   ),
                 ),
-                CustomButton(
+                RounderButton(
                   ontap: () {
                     _navigateToTaskAutomation();
                   },
@@ -182,9 +221,73 @@ class _TasksState extends State<Tasks> {
               ],
             ),
             SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+            // Container(
+            //   decoration: BoxDecoration(
+            //     color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+            //     borderRadius: BorderRadius.circular(8),
+            //   ),
+            //   child: TextField(
+            //     controller: _searchController,
+            //     decoration: InputDecoration(
+            //       hintText: "Search tasks...",
+            //       prefixIcon: Icon(
+            //         Icons.search,
+            //         color: textColor.withOpacity(0.7),
+            //       ),
+            //       border: InputBorder.none,
+            //       contentPadding: EdgeInsets.symmetric(
+            //         horizontal: 16,
+            //         vertical: 12,
+            //       ),
+            //     ),
+            //     style: TextStyle(color: textColor),
+            //   ),
+            // ),
+            Container(
+              height: 40, // Reduced height
+              width: MediaQuery.of(context).size.width * 0.4, // Reduced width
+              margin: EdgeInsets.symmetric(horizontal: 10), // Add margin
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(
+                  20,
+                ), // Increased radius for circular look
+                border: Border.all(
+                  color: borderColor.withOpacity(0.2),
+                  width: 0.5,
+                ),
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: "Search tasks...",
+                  hintStyle: TextStyle(
+                    fontSize: 14, // Smaller text
+                    color: textColor.withOpacity(0.5),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: textColor.withOpacity(0.7),
+                    size: 18, // Smaller icon
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  isDense: true, // Makes the TextField more compact
+                ),
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                ), // Smaller text
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.03),
             Wrap(
-              spacing: 8.0, // Horizontal spacing between items
-              runSpacing: 8.0, // Vertical spacing between rows
+              spacing: 0.1, // Horizontal spacing between items
+              runSpacing: 4.0, // Vertical spacing between rows
               children:
                   Categories.categories.map((category) {
                     final isSelected = _selectedCategory == category;
@@ -267,31 +370,36 @@ class _TasksState extends State<Tasks> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                       subtitle: Text(
-  (() {
-    String dateInfo = "";
-    // Add null check for isRecurring property
-    bool isRecurring = task.isRecurring ?? false;  // Use ?? to provide a default
-    
-    if (isRecurring) {
-      // For recurring tasks, show "Recurring" instead of date
-      dateInfo = " • Recurring";
-    } else {
-      // For normal tasks, show the date
-      taskProvider.tasks.forEach((date, taskList) {
-        if (taskList.contains(task)) {
-          dateInfo = " • ${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
-        }
-      });
-    }
+                              subtitle: Text(
+                                (() {
+                                  String dateInfo = "";
+                                  bool isRecurring =
+                                      task.isRecurring ??
+                                      false; // Use ?? to provide a default
 
-    // Return the formatted subtitle
-    return "${task.category} - ${task.time}$dateInfo";
-  })(),
-  style: TextStyle(
-    color: textColor.withOpacity(0.7),
-  ),
-),
+                                  if (isRecurring) {
+                                    // For recurring tasks, show "Recurring" instead of date
+                                    dateInfo = " • Recurring";
+                                  } else {
+                                    // For normal tasks, show the date
+                                    taskProvider.tasks.forEach((
+                                      date,
+                                      taskList,
+                                    ) {
+                                      if (taskList.contains(task)) {
+                                        dateInfo =
+                                            " • ${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
+                                      }
+                                    });
+                                  }
+
+                                  // Return the formatted subtitle
+                                  return "${task.category} - ${task.time}$dateInfo";
+                                })(),
+                                style: TextStyle(
+                                  color: textColor.withOpacity(0.7),
+                                ),
+                              ),
                             ),
                           );
                         },

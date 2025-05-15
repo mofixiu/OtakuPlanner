@@ -718,7 +718,7 @@ class _Setuppage2State extends State<Setuppage2> {
                       ),
                     ),
                   ),
-                  Transform.translate(offset: Offset(0, -30),
+                  Transform.translate(offset: Offset(0, -2),
                child: isLoading
                     ? Center(child: CircularProgressIndicator())
                   : characters.isEmpty

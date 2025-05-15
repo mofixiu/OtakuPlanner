@@ -9,7 +9,7 @@ import 'package:otakuplanner/shared/quote_service.dart';
 import 'package:provider/provider.dart';
 import 'package:splash_view/splash_view.dart';
 import 'package:otakuplanner/shared/notifications.dart';
-import 'package:otakuplanner/themes/theme.dart'; // Add this import
+import 'package:otakuplanner/themes/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,12 +17,9 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  // Create and register the global notification service
   final notificationService = NotificationService();
   notificationService.registerAsGlobal();
   QuoteService.initializeQuotes();
-
-
   runApp(
     MultiProvider(
       providers: [
@@ -48,7 +45,7 @@ class MyApp extends StatelessWidget {
       
       debugShowCheckedModeBanner: false,
       
-      scaffoldMessengerKey: rootScaffoldMessengerKey,  // Add this lin
+      scaffoldMessengerKey: rootScaffoldMessengerKey,  
       title: 'Thriller',
       theme: OtakuPlannerTheme.lightTheme,
       darkTheme: OtakuPlannerTheme.darkTheme,

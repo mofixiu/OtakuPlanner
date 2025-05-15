@@ -217,7 +217,10 @@ class _SettingsState extends State<Settings> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
+        leading: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
+        ),
         centerTitle: false,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 2,
@@ -375,7 +378,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.45,
+                height: MediaQuery.of(context).size.height / 4.3,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -553,7 +556,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 3.7,
+                height: MediaQuery.of(context).size.height / 3.6,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -776,7 +779,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.4,
+                height: MediaQuery.of(context).size.height / 4.3,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -1272,9 +1275,10 @@ class _SettingsState extends State<Settings> {
                 ontap: () {},
                 data: "LOG OUT",
                 textcolor: Colors.white,
-                backgroundcolor: Colors.red,
+  backgroundcolor: const Color(0xFF8B0020), 
                 width: MediaQuery.of(context).size.width,
                 height: 50,
+                
               ),
             ],
           ),

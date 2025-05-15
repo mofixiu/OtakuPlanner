@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/screens/entryScreens/SetUpPage2.dart';
+import 'package:otakuplanner/screens/entryScreens/comingSoon.dart';
 import 'package:otakuplanner/screens/normalMode/dashboard.dart';
 import 'package:otakuplanner/themes/theme.dart';
 
@@ -14,7 +15,7 @@ class _SetupPage1State extends State<SetupPage1> {
   void animenext() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const Setuppage2()),
+      MaterialPageRoute(builder: (context) => const Comingsoon()),
     );
   }
     void normalnext() {

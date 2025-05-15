@@ -46,6 +46,25 @@ class _TaskAutomationState extends State<TaskAutomation> {
     // Simulate NLP processing with a delay
     Future.delayed(Duration(milliseconds: 800), () {
       final result = _parseTaskText(text);
+      
+      // Check if time is specified before proceeding
+      if (result['time'] == null || result['time'].isEmpty) {
+        setState(() {
+          _isProcessing = false;
+          // Only set error message but keep _extractedData empty to prevent showing results
+          _parsingResult = 'Missing time information. Please include a time in your task description (e.g., 3 PM, 7:30 AM)';
+          _extractedData = {}; // Ensure data is empty
+        });
+        
+        // Also show toast notification for extra visibility
+        // NotificationService.showToast(
+        //   context,
+        //   "Missing Information",
+        //   "Please include a time in your task description (e.g., 3 PM, 7:30 AM)",
+        // );
+        return;
+      }
+      
       setState(() {
         _extractedData = result;
         _selectedCategory = result['category']; // Set the initial category
@@ -64,22 +83,30 @@ class _TaskAutomationState extends State<TaskAutomation> {
       'time': '',
       'isRecurring': false,
       'category': 'General',
-      "specificDate":null,
+      "specificDate": null,
     };
-  if (lowerText.contains('tomorrow')) {
-    // Calculate tomorrow's date
-    final tomorrow = DateTime.now().add(Duration(days: 1));
-    result['specificDate'] = tomorrow;
-    // Also set the day name for display purposes
-    result['day'] = _getDayName(tomorrow.weekday);
-  } else if (lowerText.contains('today')) {
-    // Handle "today" references
-    result['specificDate'] = DateTime.now();
-    result['day'] = _getDayName(DateTime.now().weekday);
-  }
-  
+    if (lowerText.contains('tomorrow')) {
+      // Calculate tomorrow's date
+      final tomorrow = DateTime.now().add(Duration(days: 1));
+      result['specificDate'] = tomorrow;
+      // Also set the day name for display purposes
+      result['day'] = _getDayName(tomorrow.weekday);
+    } else if (lowerText.contains('today')) {
+      // Handle "today" references
+      result['specificDate'] = DateTime.now();
+      result['day'] = _getDayName(DateTime.now().weekday);
+    }
+
     // Extract day of week
-    final days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final days = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
     for (var day in days) {
       if (lowerText.contains(day)) {
         result['day'] = day[0].toUpperCase() + day.substring(1);
@@ -106,9 +133,17 @@ class _TaskAutomationState extends State<TaskAutomation> {
       }
     }
 
-    result['isRecurring'] = lowerText.contains('every') || lowerText.contains('weekly');
+    result['isRecurring'] =
+        lowerText.contains('every') || lowerText.contains('weekly');
 
-    final categories = ['Anime', 'Manga', 'Gaming', 'Study', 'Work', 'Personal'];
+    final categories = [
+      'Anime',
+      'Manga',
+      'Gaming',
+      'Study',
+      'Work',
+      'Personal',
+    ];
     for (var category in categories) {
       if (lowerText.contains(category.toLowerCase())) {
         result['category'] = category;
@@ -123,7 +158,10 @@ class _TaskAutomationState extends State<TaskAutomation> {
     } else {
       for (var day in days) {
         if (lowerText.contains(day)) {
-          title = text.substring(0, lowerText.indexOf(day, lowerText.indexOf(day))).trim();
+          title =
+              text
+                  .substring(0, lowerText.indexOf(day, lowerText.indexOf(day)))
+                  .trim();
           break;
         }
       }
@@ -132,87 +170,101 @@ class _TaskAutomationState extends State<TaskAutomation> {
 
     return result;
   }
-String _getDayName(int weekday) {
-  const Map<int, String> dayNames = {
-    DateTime.monday: 'Monday',
-    DateTime.tuesday: 'Tuesday',
-    DateTime.wednesday: 'Wednesday',
-    DateTime.thursday: 'Thursday',
-    DateTime.friday: 'Friday',
-    DateTime.saturday: 'Saturday',
-    DateTime.sunday: 'Sunday',
-  };
-  return dayNames[weekday] ?? '';
-}
-  // Format the parsing result for display
+
+  String _getDayName(int weekday) {
+    const Map<int, String> dayNames = {
+      DateTime.monday: 'Monday',
+      DateTime.tuesday: 'Tuesday',
+      DateTime.wednesday: 'Wednesday',
+      DateTime.thursday: 'Thursday',
+      DateTime.friday: 'Friday',
+      DateTime.saturday: 'Saturday',
+      DateTime.sunday: 'Sunday',
+    };
+    return dayNames[weekday] ?? '';
+  }
   String _formatParsingResult(Map<String, dynamic> data) {
-    if (data['title'].isEmpty && data['day'].isEmpty && data['time'].isEmpty) {
-      return 'Could not understand the task. Please try again with a clearer description.';
-    }
-
-    final List<String> parts = [];
-
-    if (data['title'].isNotEmpty) {
-      parts.add('Task: ${data['title']}');
-    }
-
-    if (data['day'].isNotEmpty) {
-      parts.add('Day: ${data['day']}');
-    }
-
-    if (data['time'].isNotEmpty) {
-      parts.add('Time: ${data['time']}');
-    }
-
-    parts.add('Category: ${data['category']}');
-    parts.add('Recurring: ${data['isRecurring'] ? 'Yes' : 'No'}');
-
-    return parts.join('\n');
+  // Add null checks before using isEmpty
+  if ((data['title'] == null || data['title'].isEmpty) && 
+      (data['day'] == null || data['day'].isEmpty) && 
+      (data['time'] == null || data['time'].isEmpty)) {
+    return 'Could not understand the task. Please try again with a clearer description.';
   }
 
-  // Format the parsing result without category for display
-  String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
-    if (data['title'].isEmpty && data['day'].isEmpty && data['time'].isEmpty) {
-      return 'Could not understand the task. Please try again with a clearer description.';
-    }
+  final List<String> parts = [];
 
-    final List<String> parts = [];
-
-    if (data['title'].isNotEmpty) {
-      parts.add('Task: ${data['title']}');
-    }
-
-    if (data['day'].isNotEmpty) {
-      parts.add('Day: ${data['day']}');
-    }
-
-    if (data['time'].isNotEmpty) {
-      parts.add('Time: ${data['time']}');
-    }
-
-    // Include recurring information but exclude category
-    parts.add('Recurring: ${data['isRecurring'] ? 'Yes' : 'No'}');
-
-    return parts.join('\n');
+  if (data['title'] != null && data['title'].isNotEmpty) {
+    parts.add('Task: ${data['title']}');
   }
+
+  if (data['day'] != null && data['day'].isNotEmpty) {
+    parts.add('Day: ${data['day']}');
+  }
+
+  if (data['time'] != null && data['time'].isNotEmpty) {
+    parts.add('Time: ${data['time']}');
+  }
+
+  parts.add('Category: ${data['category'] ?? 'General'}');
+  parts.add('Recurring: ${data['isRecurring'] == true ? 'Yes' : 'No'}');
+
+  return parts.join('\n');
+}
+
+// Format the parsing result without category for display
+String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
+  // Add null checks before using isEmpty
+  if ((data['title'] == null || data['title'].isEmpty) && 
+      (data['day'] == null || data['day'].isEmpty) && 
+      (data['time'] == null || data['time'].isEmpty)) {
+    return 'Could not understand the task. Please try again with a clearer description.';
+  }
+
+  final List<String> parts = [];
+
+  if (data['title'] != null && data['title'].isNotEmpty) {
+    parts.add('Task: ${data['title']}');
+  }
+
+  if (data['day'] != null && data['day'].isNotEmpty) {
+    parts.add('Day: ${data['day']}');
+  }
+
+  if (data['time'] != null && data['time'].isNotEmpty) {
+    parts.add('Time: ${data['time']}');
+  }
+
+  // Include recurring information but exclude category
+  parts.add('Recurring: ${data['isRecurring'] == true ? 'Yes' : 'No'}');
+
+  return parts.join('\n');
+}
 
   // Create the task and add it to calendar
   void _createAutomatedTask() {
     if (_extractedData.isEmpty || _extractedData['title'].isEmpty) {
       NotificationService.showToast(
-        context, 
-        "Processing Error", 
-        "Please process a valid task description first"
+        context,
+        "Processing Error",
+        "Please process a valid task description first",
       );
       return;
     }
-  final String taskTitle = _extractedData['title'];
+      if (_extractedData['time'] == null || _extractedData['time'].isEmpty) {
+    // NotificationService.showToast(
+    //   context,
+    //   "Missing Information",
+    //   "Please include a time in your task description (e.g., 3 PM, 7:30 AM)",
+    // );
+    return;
+  }
+    final String taskTitle = _extractedData['title'];
 
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    
+
     // Calculate task dates - for recurring tasks, use more future dates
     final List<DateTime> taskDates = _getTaskDates();
-    
+
     // Create task for each date - use _selectedCategory instead of _extractedData['category']
     for (final date in taskDates) {
       final task = Task(
@@ -220,42 +272,44 @@ String _getDayName(int weekday) {
         category: _selectedCategory, // Use the selected category
         time: _extractedData['time'] ?? '12:00 PM',
         color: Task.getRandomColor(),
-        icon: categoryIcons[_selectedCategory] ?? FontAwesomeIcons.listCheck, // Use selected category icon
+        icon:
+            categoryIcons[_selectedCategory] ??
+            FontAwesomeIcons.listCheck, // Use selected category icon
         isChecked: false,
         isRecurring: _extractedData['isRecurring'] ?? false, // Add null check
       );
-      
+
       taskProvider.addTask(date, task);
     }
-    
+
     NotificationService.showToast(
       context,
       "Task Automated",
-      _extractedData['isRecurring'] 
-        ? "'$taskTitle' has been added as a recurring task"
-        : "'$taskTitle' has been added to your calendar",
+      _extractedData['isRecurring']
+          ? "'$taskTitle' has been added as a recurring task"
+          : "'$taskTitle' has been added to your calendar",
     );
-    
+
     Navigator.pop(context, true);
   }
-  
+
   // Update the _getTaskDates method for better recurring dates
   List<DateTime> _getTaskDates() {
     List<DateTime> dates = [];
     final dayOfWeek = _getDayNumber(_extractedData['day']);
-    
+
     // If no specific day or not recurring, just add today or tomorrow
     if (dayOfWeek == -1 && !_extractedData['isRecurring']) {
       dates.add(DateTime.now());
       return dates;
     }
-    
+
     DateTime currentDate = DateTime.now();
-    
+
     // For recurring tasks, add more future occurrences
     int occurrencesToAdd = _extractedData['isRecurring'] ? 50 : 1;
     int count = 0;
-    
+
     if (dayOfWeek != -1) {
       // Recurring on specific day of week
       while (count < occurrencesToAdd) {
@@ -263,27 +317,27 @@ String _getDayName(int weekday) {
         while (currentDate.weekday != dayOfWeek) {
           currentDate = currentDate.add(Duration(days: 1));
         }
-        
-        dates.add(DateTime(currentDate.year, currentDate.month, currentDate.day));
+
+        dates.add(
+          DateTime(currentDate.year, currentDate.month, currentDate.day),
+        );
         count++;
-        
+
         // Move to the next day
         currentDate = currentDate.add(Duration(days: 1));
       }
     } else {
       // Recurring every day
       for (int i = 0; i < occurrencesToAdd; i++) {
-        dates.add(DateTime(
-          currentDate.year, 
-          currentDate.month, 
-          currentDate.day + i
-        ));
+        dates.add(
+          DateTime(currentDate.year, currentDate.month, currentDate.day + i),
+        );
       }
     }
-    
+
     return dates;
   }
-  
+
   // Convert day name to weekday number
   int _getDayNumber(String day) {
     final Map<String, int> dayMapping = {
@@ -295,16 +349,17 @@ String _getDayName(int weekday) {
       'Saturday': DateTime.saturday,
       'Sunday': DateTime.sunday,
     };
-    
+
     return dayMapping[day] ?? -1;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDarkMode 
-        ? OtakuPlannerTheme.darkBackground 
-        : OtakuPlannerTheme.lightBackground;
+    final backgroundColor =
+        isDarkMode
+            ? OtakuPlannerTheme.darkBackground
+            : OtakuPlannerTheme.lightBackground;
     final cardColor = OtakuPlannerTheme.getCardColor(context);
     final textColor = OtakuPlannerTheme.getTextColor(context);
     final buttonColor = OtakuPlannerTheme.getButtonColor(context);
@@ -333,10 +388,7 @@ String _getDayName(int weekday) {
               SizedBox(height: 16),
               Text(
                 'Describe your recurring task in plain English:',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: textColor,
-                ),
+                style: TextStyle(fontSize: 16, color: textColor),
               ),
               SizedBox(height: 8),
               Container(
@@ -357,9 +409,14 @@ String _getDayName(int weekday) {
                       ),
                     ),
                     SizedBox(height: 8),
-                    Text('• Watch Solo Leveling every Friday at 7:00 PM', style: TextStyle(color: textColor)),
-                    Text('• Study Japanese every Monday at 3 PM', style: TextStyle(color: textColor)),
-                 
+                    Text(
+                      '• Watch Solo Leveling every Friday at 7:00 PM',
+                      style: TextStyle(color: textColor),
+                    ),
+                    Text(
+                      '• Study Japanese every Monday at 3 PM',
+                      style: TextStyle(color: textColor),
+                    ),
                   ],
                 ),
               ),
@@ -386,20 +443,21 @@ String _getDayName(int weekday) {
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
                   onPressed: _isProcessing ? null : _processTaskText,
-                  child: _isProcessing
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text('Process Task'),
+                  child:
+                      _isProcessing
+                          ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : Text('Process Task'),
                 ),
               ),
               SizedBox(height: 24),
-              if (_parsingResult.isNotEmpty)
+              if (_parsingResult.isNotEmpty && _extractedData.isNotEmpty)
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -412,7 +470,7 @@ String _getDayName(int weekday) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Parsing Results:',
+                        'Results:',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -430,7 +488,7 @@ String _getDayName(int weekday) {
                         ),
                       ),
                       SizedBox(height: 16),
-                      
+
                       // Add category selection
                       Text(
                         'Category:',
@@ -441,47 +499,101 @@ String _getDayName(int weekday) {
                         ),
                       ),
                       SizedBox(height: 8),
-                      
-                      // Category chips
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          'General', 'Anime', 'Manga', 'Gaming', 'Study', 'Work', 'Personal'
-                        ].map((category) {
-                          final isSelected = _selectedCategory == category;
-                          return ChoiceChip(
-                            label: Text(category),
-                            selected: isSelected,
-                            backgroundColor: cardColor,
-                            selectedColor: buttonColor,
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : textColor,
+
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedCategory,
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
                             ),
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _selectedCategory = category;
-                                });
-                              }
-                            },
-                          );
-                        }).toList(),
+                            border: InputBorder.none,
+                          ),
+                          icon: Icon(Icons.arrow_drop_down, color: buttonColor),
+                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                          dropdownColor: Colors.white,
+                          items:
+                              [
+                                'General',
+                                'Anime',
+                                'Manga',
+                                'Gaming',
+                                'Study',
+                                'Work',
+                                'Personal',
+                              ].map((String category) {
+                                return DropdownMenuItem<String>(
+                                  value: category,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        categoryIcons[category],
+                                        size: 16,
+                                        color: buttonColor,
+                                      ),
+                                      SizedBox(width:14),
+                                      Text(category),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedCategory = newValue;
+                              });
+                            }
+                          },
+                        ),
                       ),
-                      
                       SizedBox(height: 16),
-                      if (_extractedData.isNotEmpty && _extractedData['title'].isNotEmpty)
+                      if (_extractedData.isNotEmpty &&
+                          _extractedData['title'].isNotEmpty)
                         Center(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: buttonColor,
                               foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
                             ),
                             onPressed: _createAutomatedTask,
                             child: Text('Create Tasks on Calendar'),
                           ),
                         ),
+                    ],
+                  ),
+                )
+              else if (_parsingResult.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _parsingResult,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

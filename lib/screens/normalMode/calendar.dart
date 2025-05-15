@@ -60,7 +60,7 @@ class Calendar extends StatefulWidget {
   @override
   State<Calendar> createState() => _CalendarState();
 }
-
+  
 class _CalendarState extends State<Calendar> {
   final int _currentIndex = 1;
   DateTime _focusedDay = DateTime.now();
@@ -69,7 +69,6 @@ class _CalendarState extends State<Calendar> {
   @override
   void initState() {
     super.initState();
-    // Ensure we're showing today when first loading
     final today = DateTime(
       DateTime.now().year,
       DateTime.now().month,
