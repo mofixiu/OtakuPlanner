@@ -6,7 +6,7 @@ class Tustom extends StatelessWidget {
   final VoidCallback ontap;
   final String data;
   final Color textcolor, backgroundcolor;
-  final double width,height;
+  final double width, height;
   Tustom({
     Key? key,
     required this.ontap,
@@ -19,26 +19,40 @@ class Tustom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: ontap,
-      child: Container(
-        alignment: Alignment.center,
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
-          color: backgroundcolor,
-        ),
-        child: Text(
-          textAlign: TextAlign.center,
-          data,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 21,
-            color: textcolor,
-          ),
-        ),
+    // return InkWell(
+    //   onTap: ontap,
+    //   child: Container(
+    //     alignment: Alignment.center,
+    //     width: width,
+    //     height: height,
+    //     decoration: BoxDecoration(
+    //       borderRadius: BorderRadius.circular(23),
+    //       color: backgroundcolor,
+    //     ),
+    //     child: Text(
+    //       textAlign: TextAlign.center,
+    //       data,
+    //       style: TextStyle(
+    //         fontWeight: FontWeight.bold,
+    //         fontSize: 21,
+    //         color: textcolor,
+    //       ),
+    //     ),
+    //   ),
+    // );
+    return ElevatedButton(
+      onPressed: ontap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundcolor,
+        shape: StadiumBorder(),
+        foregroundColor: textcolor,
+        minimumSize: Size(width, height),
       ),
+      child: Text(data, style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 17,
+        color: textcolor,
+      ),),
     );
   }
 }

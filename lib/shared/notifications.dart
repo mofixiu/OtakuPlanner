@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otakuplanner/themes/theme.dart';
 import 'package:provider/provider.dart';
 
 // Add a global key for ScaffoldMessenger
@@ -97,18 +98,48 @@ class NotificationService extends ChangeNotifier {
     _globalNotificationService?.addNotification(title, message);
   }
 
-  // Modified static method for safe toast display
+  // Update the static showToast method to never use context that might be disposed
   static void showToast(BuildContext? context, String title, String message) {
-    // Add to notification list
+    // Add to notification list first (this can still use context safely)
     addGlobalNotification(context, title, message);
+    
+    // Get theme-aware colors if context is available
+    Color snackBarColor;
+    Color textColor = Colors.white;
+    
+    // Store context reference before any async operations
+    BuildContext? safeContext = context;
+    bool contextIsValid = safeContext != null;
+    bool isDarkMode = false;
+    
+    // Try to read theme info immediately (not in a future)
+    try {
+      if (contextIsValid) {
+        isDarkMode = Theme.of(safeContext!).brightness == Brightness.dark;
+        
+        // Use theme-aware colors
+        if (title.contains('Completed')) {
+          snackBarColor = isDarkMode ? Colors.green.shade700 : Colors.green;
+        } else {
+          snackBarColor = OtakuPlannerTheme.getButtonColor(safeContext);
+        }
+      } else {
+        // Fallback colors if no context
+        snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
+      }
+    } catch (e) {
+      // If any error occurs reading the context, use fallback colors
+      contextIsValid = false;
+      snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
+    }
     
     // Create the SnackBar
     final snackBar = SnackBar(
       content: Row(
         children: [
           title.contains('Completed') 
-              ? Icon(Icons.check_circle_outline, color: Colors.white)
-              : Icon(Icons.notifications_active, color: Colors.white),
+              ? Icon(Icons.check_circle_outline, color: textColor)
+              : Icon(Icons.notifications_active, color: textColor),
           SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -117,17 +148,15 @@ class NotificationService extends ChangeNotifier {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
                 ),
-                Text(message),
+                Text(message, style: TextStyle(color: textColor)),
               ],
             ),
           ),
         ],
       ),
-      backgroundColor: title.contains('Completed') 
-          ? Colors.green 
-          : Color(0xFF1E293B),
+      backgroundColor: snackBarColor,
       duration: Duration(seconds: 3),
       behavior: SnackBarBehavior.floating,
       margin: EdgeInsets.all(10),
@@ -135,18 +164,28 @@ class NotificationService extends ChangeNotifier {
         borderRadius: BorderRadius.circular(8),
       ),
     );
+//     final scaffoldMessenger = rootScaffoldMessengerKey.currentState;
+// if (scaffoldMessenger == null) {
+//   print("ERROR: ScaffoldMessenger is null! Make sure to set scaffoldMessengerKey in MaterialApp");
+  
+//   // Last resort - try to find any active context to show notification
+//   try {
+//     // Find the most recent navigator to show our snackbar
+//     final navigatorKey = GlobalKey<NavigatorState>();
+//     if (navigatorKey.currentState?.overlay?.context != null) {
+//       ScaffoldMessenger.of(navigatorKey.currentState!.overlay!.context)
+//           .showSnackBar(snackBar);
+//     }
+//   } catch (e) {
+//     print("Couldn't show notification: $e");
+//   }
+// } else {
+//   // Show with our global key
+//   scaffoldMessenger.showSnackBar(snackBar);
+// }
     
-    // Try context first
-    if (context != null) {
-      try {
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        return;
-      } catch (e) {
-        // Context no longer valid, will fall back to global key
-      }
-    }
-    
-    // Fall back to global key
+    // IMPORTANT: Always use the global key instead of context
+    // This ensures we don't use a potentially disposed context
     rootScaffoldMessengerKey.currentState?.showSnackBar(snackBar);
   }
 }
@@ -158,8 +197,16 @@ class NotificationDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final notifications = Provider.of<NotificationService>(context).notifications;
     final notificationService = Provider.of<NotificationService>(context, listen: false);
+    
+    // Get theme colors
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
 
     return Dialog(
+      backgroundColor: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -183,6 +230,7 @@ class NotificationDropdown extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   Row(
@@ -191,28 +239,39 @@ class NotificationDropdown extends StatelessWidget {
                         onPressed: () {
                           notificationService.markAllAsRead();
                         },
-                        child: Text("Mark all as read",
-                            style: TextStyle(color: Colors.blue, fontSize: 16)),
+                        child: Text(
+                          "Mark all as read",
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                            fontSize: 16
+                          ),
+                        ),
                       ),
                       SizedBox(width: 8),
-                      
                     ],
                   ),
                 ],
               ),
             ),
-            Divider(),
+            Divider(color: borderColor.withOpacity(0.5)),
             notifications.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.notifications_off_outlined, size: 48, color: Colors.grey),
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 48,
+                            color: textColor.withOpacity(0.5),
+                          ),
                           SizedBox(height: 16),
                           Text(
                             "No notifications yet",
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: textColor.withOpacity(0.5),
+                            ),
                           ),
                         ],
                       ),
@@ -222,28 +281,44 @@ class NotificationDropdown extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: notifications.length,
-                      separatorBuilder: (_, __) => Divider(height: 1),
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: borderColor.withOpacity(0.3),
+                      ),
                       itemBuilder: (context, index) {
                         final note = notifications[index];
+                        final isCompleted = note.title.contains('Completed');
+                        
+                        // Theme-aware notification item colors
+                        final itemBgColor = note.isRead
+                            ? null
+                            : isDarkMode
+                                ? buttonColor.withOpacity(0.2)
+                                : Color(0xFFF0F9FF);
+                        
+                        final iconColor = isCompleted
+                            ? isDarkMode ? Colors.lightGreen : Colors.green
+                            : isDarkMode ? Colors.lightBlue : Colors.blue;
+                        
+                        final iconBgColor = isCompleted
+                            ? (isDarkMode ? Colors.green.shade900 : Colors.green.withOpacity(0.1))
+                            : (isDarkMode ? Colors.blue.shade900 : Colors.blue.withOpacity(0.1));
+                            
                         return ListTile(
-                          tileColor: note.isRead ? null : Color(0xFFF0F9FF),
+                          tileColor: itemBgColor,
                           leading: Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: note.title.contains('Completed')
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.blue.withOpacity(0.1),
+                              color: iconBgColor,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
                               child: Icon(
-                                note.title.contains('Completed')
+                                isCompleted
                                     ? Icons.check_circle_outline
                                     : Icons.notifications_active,
-                                color: note.title.contains('Completed')
-                                    ? Colors.green
-                                    : Colors.blue,
+                                color: iconColor,
                                 size: 20,
                               ),
                             ),
@@ -251,22 +326,33 @@ class NotificationDropdown extends StatelessWidget {
                           title: Text(
                             note.title,
                             style: TextStyle(
+                              color: textColor,
                               fontWeight: note.isRead ? FontWeight.normal : FontWeight.bold,
                             ),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(note.message),
+                              Text(
+                                note.message,
+                                style: TextStyle(color: textColor.withOpacity(0.7)),
+                              ),
                               SizedBox(height: 4),
                               Text(
                                 _formatTimestamp(note.timestamp),
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textColor.withOpacity(0.5),
+                                ),
                               ),
                             ],
                           ),
                           trailing: IconButton(
-                            icon: Icon(Icons.close, size: 18),
+                            icon: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: textColor.withOpacity(0.7),
+                            ),
                             onPressed: () {
                               notificationService.removeNotification(index);
                             },
@@ -283,21 +369,29 @@ class NotificationDropdown extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-              TextButton(
-                        onPressed: () {
-                          notificationService.clearAll();
-                        },
-                        child: Text(
-                          "Clear all",
-                          style: TextStyle(color: Colors.red,fontSize: 12),
-                        ),
-                      ),
-                        TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Close"),
-            ),
-            ],)
-          
+                TextButton(
+                  onPressed: () {
+                    notificationService.clearAll();
+                  },
+                  child: Text(
+                    "Clear all",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Close",
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            )
           ],
         ),
       ),

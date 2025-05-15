@@ -1,13 +1,18 @@
 // ignore_for_file: deprecated_member_use
 // import 'package:animated_switch/animated_switch.dart';
+import 'dart:io';
+
 import 'package:family_bottom_sheet/family_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:otakuplanner/entryScreens/changePassword.dart';
+import 'package:otakuplanner/screens/entryScreens/changePassword.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
-import 'package:otakuplanner/screens/profile.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/normalMode/profile.dart';
+import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/customButtonWithAnIcon.dart';
+import 'package:otakuplanner/widgets/tustomButton.dart';
 import 'package:provider/provider.dart';
 
 class Settings extends StatefulWidget {
@@ -39,15 +44,185 @@ class _SettingsState extends State<Settings> {
   bool isApp = false;
   bool isSystem = false;
   bool isEmail = false;
+  bool isPopup = false;
+  bool _weeklySummary = true;
+  bool _taskReminders = true;
+  bool _featureAnnouncements = false;
+  bool _achievementReports = true;
   bool has2FAEnabled = false;
+
+  void _showEmailPreferencesSheet() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+
+    FamilyModalSheet.show<void>(
+      context: context,
+      contentBackgroundColor: cardColor,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.email, color: isDarkMode ? Colors.lightBlue : Colors.blue),
+                      SizedBox(width: 10),
+                      Text(
+                        "Email Notification Preferences",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    "Customize which email notifications you'd like to receive. These will be sent to: placeholder@email.com",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor.withOpacity(0.7),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  _buildPreferenceToggle(
+                    "Weekly Summary",
+                    "Receive a weekly summary of your tasks and progress",
+                    _weeklySummary,
+                    (value) => setModalState(() => _weeklySummary = value),
+                  ),
+                  _buildPreferenceToggle(
+                    "Task Reminders",
+                    "Get reminders about upcoming and overdue tasks",
+                    _taskReminders,
+                    (value) => setModalState(() => _taskReminders = value),
+                  ),
+                  _buildPreferenceToggle(
+                    "Feature Announcements",
+                    "Receive notifications about new features and updates",
+                    _featureAnnouncements,
+                    (value) => setModalState(() => _featureAnnouncements = value),
+                  ),
+                  _buildPreferenceToggle(
+                    "Achievement Reports",
+                    "Get emails when you unlock new achievements",
+                    _achievementReports,
+                    (value) => setModalState(() => _achievementReports = value),
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            isEmail = false;
+                          });
+                        },
+                        child: Text(
+                          "Close",
+                          style: TextStyle(color: textColor.withOpacity(0.7)),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            isEmail = _weeklySummary || _taskReminders || 
+                                      _featureAnnouncements || _achievementReports;
+                          });
+                          // Here you would save these preferences to your backend/storage
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDarkMode ? Colors.lightBlue : Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text("Save Preferences"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  Widget _buildPreferenceToggle(
+    String title, 
+    String subtitle, 
+    bool value, 
+    ValueChanged<bool> onChanged
+  ) {
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: textColor,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textColor.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: isDarkMode ? Colors.lightBlue : OtakuPlannerTheme.getButtonColor(context),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    _isDarkMode = Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark;
+
+    // Get theme colors
+    // final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    final boxShadow = OtakuPlannerTheme.getBoxShadow(context);
+
     return Scaffold(
       appBar: AppBar(
-        leading: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
+        leading: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
+        ),
         centerTitle: false,
-        backgroundColor: Color.fromRGBO(255, 249, 233, 1),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 2,
         scrolledUnderElevation: 2,
         title: Text(
@@ -55,15 +230,30 @@ class _SettingsState extends State<Settings> {
           style: TextStyle(
             fontSize: 25,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
         actions: [
           GestureDetector(
             onTap: profile,
             child: Padding(
-              padding: const EdgeInsets.only(right: 15.0),
-              child: CircleAvatar(child: Icon(Icons.person)),
+            
+              
+              padding: const EdgeInsets.only(
+                    top: 12.0,
+                    left: 12,
+                    right: 12,),
+              child: CircleAvatar(
+                backgroundColor: buttonColor,
+                backgroundImage:
+                    profileImagePath.isNotEmpty
+                        ? FileImage(File(profileImagePath))
+                        : null,
+                child:
+                    profileImagePath.isEmpty
+                        ? Icon(Icons.person, color: Colors.grey)
+                        : null,
+              ),
             ),
           ),
         ],
@@ -75,55 +265,57 @@ class _SettingsState extends State<Settings> {
           physics: BouncingScrollPhysics(),
           child: Column(
             children: [
-              Container(
-                height: 100,
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+              GestureDetector(
+                onTap: profile,
+                child: Container(
+                  height: 100,
+                  width: MediaQuery.of(context).size.width,
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [boxShadow],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: buttonColor,
+                          backgroundImage:
+                              profileImagePath.isNotEmpty
+                                  ? FileImage(File(profileImagePath))
+                                  : null,
+                          child:
+                              profileImagePath.isEmpty
+                                  ? Icon(Icons.person, color: Colors.grey)
+                                  : null,
+                        ),
+                        SizedBox(width: 5),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 20),
+                            Text(
+                              "User",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: textColor,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "placeholder@email.com",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      CircleAvatar(radius: 50),
-                      SizedBox(width: 5),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: 20),
-                          Text(
-                            "User",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            "placeholder@email.com",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -132,21 +324,9 @@ class _SettingsState extends State<Settings> {
                 height: 92,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -161,7 +341,7 @@ class _SettingsState extends State<Settings> {
                         "Theme",
                         style: TextStyle(
                           fontSize: 18,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -173,7 +353,7 @@ class _SettingsState extends State<Settings> {
                             "Dark Mode",
                             style: TextStyle(
                               fontSize: 15,
-                              color: Color(0xFF1E293B),
+                              color: textColor,
                             ),
                           ),
                           Switch(
@@ -187,7 +367,7 @@ class _SettingsState extends State<Settings> {
                                 listen: false,
                               ).toggleTheme(value);
                             },
-                            activeColor: Colors.black,
+                            activeColor: buttonColor,
                             inactiveThumbColor: Colors.grey,
                           ),
                         ],
@@ -198,24 +378,12 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.45,
+                height: MediaQuery.of(context).size.height / 4.3,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -230,7 +398,7 @@ class _SettingsState extends State<Settings> {
                         "Preferences",
                         style: TextStyle(
                           fontSize: 20,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(height: 2),
@@ -241,10 +409,9 @@ class _SettingsState extends State<Settings> {
                             "Anime Mode",
                             style: TextStyle(
                               fontSize: 15,
-                              color: Color(0xFF1E293B),
+                              color: textColor,
                             ),
                           ),
-                          
                           Switch(
                             value: _isAnimeMode,
                             onChanged: (value) {
@@ -252,7 +419,7 @@ class _SettingsState extends State<Settings> {
                                 _isAnimeMode = value;
                               });
                             },
-                            activeColor: Color(0xFF1E293B),
+                            activeColor: buttonColor,
                           ),
                         ],
                       ),
@@ -267,7 +434,7 @@ class _SettingsState extends State<Settings> {
                                 "Language",
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
@@ -276,25 +443,25 @@ class _SettingsState extends State<Settings> {
                             width: 140,
                             height: 40,
                             child: DropdownButtonFormField<String>(
-                              dropdownColor: Colors.white,
+                              dropdownColor: cardColor,
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: cardColor,
                                 contentPadding: EdgeInsets.symmetric(
                                   vertical: 10.0,
                                   horizontal: 5.0,
                                 ),
                                 border: OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.grey),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
-                                    color: Color(0xFF1E293B),
+                                    color: buttonColor,
                                     width: 1.5,
                                   ),
                                 ),
                               ),
-                              value: "Option 1", // Set a default value like "Option 1" (English)
+                              value: "Option 1",
                               hint: Text(
                                 "Select an option",
                                 style: TextStyle(fontSize: 12.7),
@@ -329,7 +496,7 @@ class _SettingsState extends State<Settings> {
                                 "Time Zone",
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
@@ -341,20 +508,20 @@ class _SettingsState extends State<Settings> {
                             width: 70,
                             height: 40,
                             child: DropdownButtonFormField<String>(
-                              dropdownColor: Colors.white,
+                              dropdownColor: cardColor,
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: cardColor,
                                 contentPadding: EdgeInsets.symmetric(
                                   vertical: 10.0,
                                   horizontal: 5.0,
                                 ),
                                 border: OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.grey),
+                                  borderSide: BorderSide(color: borderColor),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
-                                    color: Color(0xFF1E293B),
+                                    color: buttonColor,
                                     width: 1.5,
                                   ),
                                 ),
@@ -389,24 +556,12 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 6,
+                height: MediaQuery.of(context).size.height / 3.6,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -421,7 +576,7 @@ class _SettingsState extends State<Settings> {
                         "Notifications",
                         style: TextStyle(
                           fontSize: 20,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(height: 2),
@@ -436,7 +591,7 @@ class _SettingsState extends State<Settings> {
                                 "In App Notifications",
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
@@ -448,7 +603,38 @@ class _SettingsState extends State<Settings> {
                                 isApp = value;
                               });
                             },
-                            activeColor: Color(0xFF1E293B),
+                            activeColor: buttonColor,
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              FaIcon(FontAwesomeIcons.bell),
+                              SizedBox(width: 5),
+                              Text(
+                                "Email Notifications",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: isEmail,
+                            onChanged: (value) {
+                              if (value) {
+                                _showEmailPreferencesSheet();
+                              } else {
+                                setState(() {
+                                  isEmail = false;
+                                });
+                              }
+                            },
+                            activeColor: buttonColor,
                           ),
                         ],
                       ),
@@ -463,7 +649,7 @@ class _SettingsState extends State<Settings> {
                                 "System Notifications",
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF1E293B),
+                                  color: textColor,
                                 ),
                               ),
                             ],
@@ -475,7 +661,34 @@ class _SettingsState extends State<Settings> {
                                 isSystem = value;
                               });
                             },
-                            activeColor: Color(0xFF1E293B),
+                            activeColor: buttonColor,
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              FaIcon(FontAwesomeIcons.bell),
+                              SizedBox(width: 5),
+                              Text(
+                                "Popup Notifications",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: isPopup,
+                            onChanged: (value) {
+                              setState(() {
+                                isPopup = value;
+                              });
+                            },
+                            activeColor: buttonColor,
                           ),
                         ],
                       ),
@@ -485,24 +698,93 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.4,
+                height: MediaQuery.of(context).size.height / 5,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
+                ),
+                child:Padding(
+                  padding: const EdgeInsets.only(
+                    top: 12.0,
+                    left: 12,
+                    right: 12,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.star_border_outlined, color: Colors.amber),
+                          SizedBox(width: 5),
+                          Text(
+                            "Premium Plan",
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 5),
+                      Padding(
+                        padding:const EdgeInsets.only(left: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  "Current Plan: ",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                                Text(
+                                  "Free",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              "Upgrade to unlock all premium features",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
+                      Tustom(
+                        ontap: () {},
+                        data: "Upgrade to Premium",
+                        textcolor: Colors.white,
+                        backgroundcolor: Colors.amber,
+                        width: MediaQuery.of(context).size.width,
+                        height: 40,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.01),
+              Container(
+                height: MediaQuery.of(context).size.height / 4.3,
+                width: MediaQuery.of(context).size.width,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -517,7 +799,7 @@ class _SettingsState extends State<Settings> {
                         "Account Settings",
                         style: TextStyle(
                           fontSize: 20,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(height: 5),
@@ -525,7 +807,7 @@ class _SettingsState extends State<Settings> {
                         ontap: changePassword,
                         data: "Change Password",
                         textcolor: Colors.white,
-                        backgroundcolor: Color(0xFF1E293B),
+                        backgroundcolor: buttonColor,
                         width: 200,
                         height: 45,
                         icon: Icons.shield_outlined,
@@ -545,14 +827,14 @@ class _SettingsState extends State<Settings> {
                                     "Two Factor Authentication",
                                     style: TextStyle(
                                       fontSize: 15,
-                                      color: Color(0xFF1E293B),
+                                      color: textColor,
                                     ),
                                   ),
                                   Text(
                                     "Secure your account with 2FA",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Color(0xFF1E293B),
+                                      color: textColor,
                                     ),
                                   ),
                                 ],
@@ -568,20 +850,21 @@ class _SettingsState extends State<Settings> {
                               if (value) {
                                 FamilyModalSheet.show<void>(
                                   context: context,
-                                  contentBackgroundColor: Colors.white,
+                                  contentBackgroundColor: cardColor,
                                   builder: (ctx) {
                                     return Padding(
                                       padding: const EdgeInsets.all(16.0),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             "Set Up Two-Factor Authentication",
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1E293B),
+                                              color: textColor,
                                             ),
                                           ),
                                           SizedBox(height: 10),
@@ -589,7 +872,7 @@ class _SettingsState extends State<Settings> {
                                             "Follow these steps to secure your account with 2FA:",
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Color(0xFF1E293B),
+                                              color: textColor,
                                             ),
                                           ),
                                           SizedBox(height: 10),
@@ -600,7 +883,7 @@ class _SettingsState extends State<Settings> {
                                             "4. Click Verify & Enable to complete.",
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Color(0xFF1E293B),
+                                              color: textColor,
                                             ),
                                           ),
                                           SizedBox(height: 15),
@@ -609,51 +892,73 @@ class _SettingsState extends State<Settings> {
                                               children: [
                                                 Container(
                                                   padding: EdgeInsets.all(8),
-                                                  color: Colors.white,
+                                                  color: cardColor,
                                                   child: Image.asset(
                                                     "assets/images/qr-code-placeholder.png",
                                                     height: 150,
-                                                    errorBuilder: (context, error, stackTrace) =>
-                                                        Icon(Icons.qr_code_scanner, size: 150, color: Colors.grey),
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) => Icon(
+                                                          Icons.qr_code_scanner,
+                                                          size: 150,
+                                                          color: Colors.grey,
+                                                        ),
                                                   ),
                                                 ),
                                                 SizedBox(height: 15),
                                                 TextField(
-                                                  // keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
                                                   maxLength: 6,
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
                                                     fontSize: 18,
                                                     letterSpacing: 3,
-                                                    color: Colors.black,
+                                                    color: textColor,
                                                   ),
                                                   decoration: InputDecoration(
                                                     counterText: "",
                                                     hintText: "------",
                                                     hintStyle: TextStyle(
-                                                      color: Colors.grey.shade500,
+                                                      color:
+                                                          Colors.grey.shade500,
                                                       fontSize: 18,
                                                       letterSpacing: 3,
                                                     ),
                                                     filled: true,
                                                     fillColor: Colors.grey[200],
                                                     border: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      borderSide: BorderSide.none,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8.0,
+                                                          ),
+                                                      borderSide:
+                                                          BorderSide.none,
                                                     ),
-                                                    focusedBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      borderSide: BorderSide(
-                                                        color: Color(0xFF1E293B),
-                                                        width: 1.5,
-                                                      ),
-                                                    ),
-                                                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                                    focusedBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8.0,
+                                                              ),
+                                                          borderSide:
+                                                              BorderSide(
+                                                                color: buttonColor,
+                                                                width: 1.5,
+                                                              ),
+                                                        ),
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 12,
+                                                        ),
                                                   ),
                                                 ),
                                                 SizedBox(height: 20),
                                                 Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceEvenly,
                                                   children: [
                                                     TextButton(
                                                       onPressed: () {
@@ -664,18 +969,25 @@ class _SettingsState extends State<Settings> {
                                                       },
                                                       child: Text(
                                                         "Cancel",
-                                                        style: TextStyle(color: Colors.grey),
+                                                        style: TextStyle(
+                                                          color: Colors.grey,
+                                                        ),
                                                       ),
                                                     ),
                                                     ElevatedButton(
                                                       onPressed: () {
                                                         Navigator.pop(ctx);
                                                       },
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Color(0xFF1E293B),
-                                                        foregroundColor: Colors.white,
+                                                      style:
+                                                          ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                buttonColor,
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                          ),
+                                                      child: Text(
+                                                        "Verify & Enable",
                                                       ),
-                                                      child: Text("Verify & Enable"),
                                                     ),
                                                   ],
                                                 ),
@@ -691,10 +1003,10 @@ class _SettingsState extends State<Settings> {
                                 // Add logic to disable 2FA if needed (e.g., show confirmation)
                               }
                             },
-                            activeColor: Colors.black,
+                            activeColor: buttonColor,
                             inactiveThumbColor: Colors.grey,
                             inactiveTrackColor: Colors.grey.shade400,
-                            activeTrackColor: Colors.black.withOpacity(0.5),
+                            activeTrackColor: buttonColor.withOpacity(0.5),
                           ),
                         ],
                       ),
@@ -724,7 +1036,7 @@ class _SettingsState extends State<Settings> {
                                   "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.",
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Color(0xFF1E293B),
+                                    color: textColor,
                                   ),
                                 ),
                                 actions: [
@@ -782,21 +1094,9 @@ class _SettingsState extends State<Settings> {
                 height: MediaQuery.of(context).size.height / 9,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(255, 249, 233, 1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [boxShadow],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -811,7 +1111,7 @@ class _SettingsState extends State<Settings> {
                         "Reset",
                         style: TextStyle(
                           fontSize: 20,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                       SizedBox(height: 10),
@@ -827,7 +1127,7 @@ class _SettingsState extends State<Settings> {
                                       children: [
                                         Icon(
                                           Icons.refresh,
-                                          color: Color(0xFF1E293B),
+                                          color: buttonColor,
                                         ),
                                         SizedBox(width: 10),
                                         Text(
@@ -835,7 +1135,7 @@ class _SettingsState extends State<Settings> {
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Color(0xFF1E293B),
+                                            color: textColor,
                                           ),
                                         ),
                                       ],
@@ -844,7 +1144,7 @@ class _SettingsState extends State<Settings> {
                                       "This will delete all your tasks, schedules, and progress data. Are you sure you want to proceed? This action cannot be undone.",
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Color(0xFF1E293B),
+                                        color: textColor,
                                       ),
                                     ),
                                     actions: [
@@ -863,7 +1163,7 @@ class _SettingsState extends State<Settings> {
                                           setState(() {});
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFF1E293B),
+                                          backgroundColor: buttonColor,
                                         ),
                                         child: Text("Reset Data"),
                                       ),
@@ -877,12 +1177,7 @@ class _SettingsState extends State<Settings> {
                               width: 140,
                               decoration: BoxDecoration(
                                 color: const Color.fromARGB(255, 155, 201, 239),
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(20),
-                                  bottomRight: Radius.circular(20),
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                               child: Center(
                                 child: Text(
@@ -903,7 +1198,7 @@ class _SettingsState extends State<Settings> {
                                       children: [
                                         Icon(
                                           Icons.restore,
-                                          color: Color(0xFF1E293B),
+                                          color: buttonColor,
                                         ),
                                         SizedBox(width: 10),
                                         Text(
@@ -911,7 +1206,7 @@ class _SettingsState extends State<Settings> {
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Color(0xFF1E293B),
+                                            color: textColor,
                                           ),
                                         ),
                                       ],
@@ -920,7 +1215,7 @@ class _SettingsState extends State<Settings> {
                                       "This will reset all your preferences and settings to their default values. Your tasks and user data will not be affected. Would you like to continue?",
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Color(0xFF1E293B),
+                                        color: textColor,
                                       ),
                                     ),
                                     actions: [
@@ -945,7 +1240,7 @@ class _SettingsState extends State<Settings> {
                                           });
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFF1E293B),
+                                          backgroundColor: buttonColor,
                                         ),
                                         child: Text("Restore Defaults"),
                                       ),
@@ -959,12 +1254,7 @@ class _SettingsState extends State<Settings> {
                               width: 140,
                               decoration: BoxDecoration(
                                 color: const Color.fromARGB(255, 155, 201, 239),
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(20),
-                                  bottomRight: Radius.circular(20),
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                               child: Center(
                                 child: Text(
@@ -980,8 +1270,16 @@ class _SettingsState extends State<Settings> {
                   ),
                 ),
               ),
-              SizedBox(height: MediaQuery.of(context).size.height*0.02),
-              CustomButton(ontap: (){}, data: "LOG OUT", textcolor: Colors.white, backgroundcolor: Colors.red, width: MediaQuery.of(context).size.width, height: 50)
+              SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+              Tustom(
+                ontap: () {},
+                data: "LOG OUT",
+                textcolor: Colors.white,
+  backgroundcolor: const Color(0xFF8B0020), 
+                width: MediaQuery.of(context).size.width,
+                height: 50,
+                
+              ),
             ],
           ),
         ),

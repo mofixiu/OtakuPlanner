@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/themes/theme.dart'; // Add this import
 import 'package:provider/provider.dart';
 
 class EditProfile extends StatefulWidget {
@@ -23,12 +24,28 @@ class _EditProfileState extends State<EditProfile> {
       setState(() {
         _profileImage = File(pickedFile.path); // Store the selected image
       });
+      Provider.of<UserProvider>(context, listen: false)
+        .setProfileImagePath(pickedFile.path);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
+    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+
+    // Get theme-specific colors
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // final cardColor = OtakuPlannerTheme.getCardColor(context);
+    final textColor = OtakuPlannerTheme.getTextColor(context);
+    final borderColor = OtakuPlannerTheme.getBorderColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    // final boxShadow = OtakuPlannerTheme.getBoxShadow(context);
+    
+    // Initialize profile image from provider if available
+    if (_profileImage == null && profileImagePath.isNotEmpty) {
+      _profileImage = File(profileImagePath);
+    }
 
     return GestureDetector(
       onTap: () {
@@ -45,14 +62,15 @@ class _EditProfileState extends State<EditProfile> {
                   children: [
                     CircleAvatar(
                       radius: 55,
+                      backgroundColor: buttonColor,
                       backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!) // Display the selected image
+                          ? FileImage(_profileImage!)
                           : null,
                       child: _profileImage == null
                           ? Icon(
                               Icons.person,
                               size: 55,
-                              color: Colors.grey.shade400,
+                              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
                             )
                           : null,
                     ),
@@ -60,13 +78,14 @@ class _EditProfileState extends State<EditProfile> {
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: _pickImage, // Call the image picker function
+                        onTap: _pickImage,
                         child: CircleAvatar(
                           radius: 15,
-                          backgroundColor: Colors.grey.shade400,
+                          backgroundColor: buttonColor,
                           child: Icon(
                             Icons.edit,
                             color: Colors.white,
+                            size: 14,
                           ),
                         ),
                       ),
@@ -79,7 +98,7 @@ class _EditProfileState extends State<EditProfile> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: textColor,
                   ),
                 ),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.01),
@@ -88,7 +107,7 @@ class _EditProfileState extends State<EditProfile> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: textColor,
                   ),
                 ),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.01),
@@ -100,7 +119,7 @@ class _EditProfileState extends State<EditProfile> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: textColor,
                       ),
                     ),
                   ],
@@ -109,30 +128,31 @@ class _EditProfileState extends State<EditProfile> {
                   width: MediaQuery.of(context).size.width,
                   height: 45,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                     borderRadius: BorderRadius.circular(5.0),
                   ),
                   child: TextField(
+                    style: TextStyle(color: textColor),
                     decoration: InputDecoration(
-                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
                       filled: false,
-                      fillColor: Colors.white,
+                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(1.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color(0xFF1E293B),
+                          color: buttonColor,
                           width: 1.5,
                         ),
                       ),
@@ -148,7 +168,7 @@ class _EditProfileState extends State<EditProfile> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: textColor,
                       ),
                     ),
                   ],
@@ -158,29 +178,31 @@ class _EditProfileState extends State<EditProfile> {
                   width: MediaQuery.of(context).size.width,
                   height: 45,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                     borderRadius: BorderRadius.circular(5.0),
                   ),
                   child: TextField(
+                    style: TextStyle(color: textColor),
                     decoration: InputDecoration(
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
                       filled: false,
-                      fillColor: Colors.white12,
+                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(1.0),
                         borderSide: BorderSide(
-                          color: Color(0xFF1E293B),
+                          color: buttonColor,
                           width: 1.5,
                         ),
                       ),
@@ -196,7 +218,7 @@ class _EditProfileState extends State<EditProfile> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: textColor,
                       ),
                     ),
                   ],
@@ -204,32 +226,34 @@ class _EditProfileState extends State<EditProfile> {
                 SizedBox(height: MediaQuery.of(context).size.height * 0.01),
                 Container(
                   width: MediaQuery.of(context).size.width,
-                  height: 180, // Increase the height of the container
+                  height: 180,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                     borderRadius: BorderRadius.circular(5.0),
                   ),
                   child: TextField(
-                    maxLines: 7, // Allow multiple lines of input
+                    style: TextStyle(color: textColor),
+                    maxLines: 7,
                     decoration: InputDecoration(
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
                       filled: false,
-                      fillColor: Colors.white12,
+                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
                         borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
+                          color: borderColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(1.0),
                         borderSide: BorderSide(
-                          color: Color(0xFF1E293B),
+                          color: buttonColor,
                           width: 1.5,
                         ),
                       ),
