@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Quote {
   final String text;
@@ -14,6 +15,13 @@ class Quote {
       author: json['author'] ?? json['a'] ?? 'Unknown',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'text': text,
+      'author': author,
+    };
+  }
 }
 
 class QuoteService {
@@ -25,24 +33,74 @@ class QuoteService {
   // Cache for quotes - static to persist across rebuilds
   static Quote? _cachedQuote;
   static bool _isRefreshing = false;
+  static String? _cachedDate; // Store the date when the quote was cached
 
   // Initialize quotes as early as possible
-  static void initializeQuotes() {
-    fetchQuoteInBackground();
+  static void initializeQuotes() async {
+    await _loadFromPrefs();
+    if (_shouldRefreshQuote()) {
+      fetchQuoteInBackground();
+    }
+  }
+
+  // Check if we need a new quote
+  static bool _shouldRefreshQuote() {
+    final today = _getDateString();
+    return _cachedDate == null || _cachedDate != today;
+  }
+
+  // Get today's date as a string in yyyy-MM-dd format
+  static String _getDateString() {
+    final now = DateTime.now();
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+  }
+
+  // Save quote to SharedPreferences
+  static Future<void> _saveToPrefs() async {
+    if (_cachedQuote == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final quoteData = jsonEncode(_cachedQuote!.toJson());
+    await prefs.setString('daily_quote', quoteData);
+    await prefs.setString('quote_date', _cachedDate ?? _getDateString());
+  }
+
+  // Load quote from SharedPreferences
+  static Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final quoteData = prefs.getString('daily_quote');
+    final quoteDate = prefs.getString('quote_date');
+
+    if (quoteData != null && quoteDate != null) {
+      try {
+        final jsonData = jsonDecode(quoteData);
+        _cachedQuote = Quote(text: jsonData['text'], author: jsonData['author']);
+        _cachedDate = quoteDate;
+      } catch (e) {
+        print('Error loading cached quote: $e');
+      }
+    }
   }
 
   // Fetch a quote in the background and cache it
   static Future<void> fetchQuoteInBackground() async {
     if (_isRefreshing) return;
-    
+
     _isRefreshing = true;
     try {
-      final quote = await _fetchFromApis();
-      _cachedQuote = quote;
+      // Only fetch a new quote if we don't have one for today
+      if (_shouldRefreshQuote()) {
+        final quote = await _fetchFromApis();
+        _cachedQuote = quote;
+        _cachedDate = _getDateString();
+        await _saveToPrefs(); // Save the new quote
+      }
     } catch (e) {
       // If all fails, get a fallback quote
       if (_cachedQuote == null) {
         _cachedQuote = _getRandomFallbackQuote();
+        _cachedDate = _getDateString();
+        await _saveToPrefs();
       }
     } finally {
       _isRefreshing = false;
@@ -51,15 +109,16 @@ class QuoteService {
 
   // Get a quote - immediate return from cache or fallback
   static Quote getQuote() {
-    // If we have a cached quote, return it and refresh in background
+    // Check if we need to refresh the quote
+    if (_shouldRefreshQuote() && !_isRefreshing) {
+      fetchQuoteInBackground();
+    }
+
+    // If we have a cached quote, return it
     if (_cachedQuote != null) {
-      // Refresh the cache for next time if not already refreshing
-      if (!_isRefreshing) {
-        fetchQuoteInBackground();
-      }
       return _cachedQuote!;
     }
-    
+
     // If no cached quote yet, return a fallback and start fetching
     final fallback = _getRandomFallbackQuote();
     if (!_isRefreshing) {
@@ -101,14 +160,18 @@ class QuoteService {
     } catch (e) {
       print('Second API failed: $e');
     }
-    
+
     // If both APIs fail, fallback to local quotes
     return _getRandomFallbackQuote();
   }
-  
+
   // Get a random fallback quote
   static Quote _getRandomFallbackQuote() {
-    final random = Random();
+    // Use the current date as a seed for the random number generator
+    // This ensures the same quote is shown all day even when using fallbacks
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    final random = Random(seed);
     return _fallbackQuotes[random.nextInt(_fallbackQuotes.length)];
   }
 

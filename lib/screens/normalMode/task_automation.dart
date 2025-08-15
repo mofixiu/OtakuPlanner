@@ -1,10 +1,16 @@
+import 'dart:developer' show log;
+
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
+import 'package:otakuplanner/models/taskMain.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
+import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/request.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/themes/theme.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:otakuplanner/providers/category_provider.dart';
 
 class TaskAutomation extends StatefulWidget {
   const TaskAutomation({Key? key}) : super(key: key);
@@ -250,47 +256,141 @@ String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
       );
       return;
     }
-      if (_extractedData['time'] == null || _extractedData['time'].isEmpty) {
-    // NotificationService.showToast(
-    //   context,
-    //   "Missing Information",
-    //   "Please include a time in your task description (e.g., 3 PM, 7:30 AM)",
-    // );
-    return;
-  }
+    
+    if (_extractedData['time'] == null || _extractedData['time'].isEmpty) {
+      return;
+    }
+    
     final String taskTitle = _extractedData['title'];
-
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // Calculate task dates - for recurring tasks, use more future dates
     final List<DateTime> taskDates = _getTaskDates();
+    final bool isRecurring = _extractedData['isRecurring'] ?? false;
 
-    // Create task for each date - use _selectedCategory instead of _extractedData['category']
+    // Create tasks for each date
     for (final date in taskDates) {
       final task = Task(
+        date: date.toIso8601String(),
         title: taskTitle,
-        category: _selectedCategory, // Use the selected category
+        category: _selectedCategory,
         time: _extractedData['time'] ?? '12:00 PM',
         color: Task.getRandomColor(),
-        icon:
-            categoryIcons[_selectedCategory] ??
-            FontAwesomeIcons.listCheck, // Use selected category icon
+        icon: categoryIcons[_selectedCategory] ?? FontAwesomeIcons.listCheck,
         isChecked: false,
-        isRecurring: _extractedData['isRecurring'] ?? false, // Add null check
+        isRecurring: isRecurring,
       );
 
       taskProvider.addTask(date, task);
     }
 
+    // Save to database based on task type
+    _saveTaskToDatabase(
+      taskTitle,
+      _selectedCategory,
+      _extractedData['time'],
+      taskDates.first,
+      isRecurring,
+      userProvider.userId,
+    );
+
     NotificationService.showToast(
       context,
       "Task Automated",
-      _extractedData['isRecurring']
+      isRecurring
           ? "'$taskTitle' has been added as a recurring task"
           : "'$taskTitle' has been added to your calendar",
     );
 
     Navigator.pop(context, true);
+  }
+
+  // Replace the _saveTaskToDatabase method in task_automation.dart:
+  Future<void> _saveTaskToDatabase(
+    String title,
+    String category,
+    String time,
+    DateTime date,
+    bool isRecurring,
+    int userId,
+  ) async {
+    try {
+      // Convert time to 24-hour format for database
+      final databaseTime = _convertTo24HourFormat(time);
+      final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+      if (isRecurring) {
+        // Save recurring task to recurring_tasks table
+        log('Saving recurring task to recurring_tasks table');
+        
+        final recurringTaskData = {
+          'user_id': userId,
+          'title': title,
+          'category': category,
+          'time': databaseTime,
+          'date': dateString,
+          'completed': false,
+          'frequency': 'weekly', // Default frequency
+        };
+
+        final response = await saveRecurringTaskToDatabase(recurringTaskData);
+        
+        if (response != null) {
+          log('Recurring task saved successfully: $response');
+        }
+      } else {
+        // Save to regular tasks table
+        final taskMain = TaskMain(
+          title: title,
+          category: category,
+          time: databaseTime,
+          date: dateString,
+          userId: userId,
+          completed: false,
+        );
+
+        log('Saving regular task to database: ${taskMain.toJson()}');
+        final response = await saveTaskToDatabase(taskMain);
+        
+        if (response != null) {
+          log('Regular task saved successfully: $response');
+        }
+      }
+    } catch (e) {
+      log('Error saving task to database: $e');
+    }
+  }
+
+  // Helper method to convert 12-hour to 24-hour format
+  String _convertTo24HourFormat(String time12Hour) {
+    try {
+      String time = time12Hour.toLowerCase().trim();
+      bool isPM = time.contains('pm');
+      bool isAM = time.contains('am');
+      
+      // Remove AM/PM
+      time = time.replaceAll('pm', '').replaceAll('am', '').trim();
+      
+      // Split by colon
+      List<String> parts = time.split(':');
+      if (parts.length < 2) return time12Hour;
+      
+      int hour = int.parse(parts[0]);
+      String minute = parts[1];
+      
+      // Convert to 24-hour format
+      if (isPM && hour != 12) {
+        hour += 12;
+      } else if (isAM && hour == 12) {
+        hour = 0;
+      }
+      
+      return '${hour.toString().padLeft(2, '0')}:$minute';
+    } catch (e) {
+      log('Error converting time format: $e');
+      return time12Hour;
+    }
   }
 
   // Update the _getTaskDates method for better recurring dates
@@ -306,7 +406,7 @@ String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
 
     DateTime currentDate = DateTime.now();
 
-    // For recurring tasks, add more future occurrences
+    // For recurring tasks, add more occurrences
     int occurrencesToAdd = _extractedData['isRecurring'] ? 50 : 1;
     int count = 0;
 
@@ -363,6 +463,10 @@ String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
     final cardColor = OtakuPlannerTheme.getCardColor(context);
     final textColor = OtakuPlannerTheme.getTextColor(context);
     final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+
+    // Update the category dropdown to use CategoryProvider:
+    final categoryProvider = Provider.of<CategoryProvider>(context);
+    final categories = categoryProvider.categoriesForDropdown;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -518,31 +622,22 @@ String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
                           icon: Icon(Icons.arrow_drop_down, color: buttonColor),
                           style: TextStyle(fontSize: 16, color: Colors.black87),
                           dropdownColor: Colors.white,
-                          items:
-                              [
-                                'General',
-                                'Anime',
-                                'Manga',
-                                'Gaming',
-                                'Study',
-                                'Work',
-                                'Personal',
-                              ].map((String category) {
-                                return DropdownMenuItem<String>(
-                                  value: category,
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        categoryIcons[category],
-                                        size: 16,
-                                        color: buttonColor,
-                                      ),
-                                      SizedBox(width:14),
-                                      Text(category),
-                                    ],
+                          items: categories.map((String category) {
+                            return DropdownMenuItem<String>(
+                              value: category,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    categoryIcons[category],
+                                    size: 16,
+                                    color: buttonColor,
                                   ),
-                                );
-                              }).toList(),
+                                  SizedBox(width: 14),
+                                  Text(category),
+                                ],
+                              ),
+                            );
+                          }).toList(),
                           onChanged: (String? newValue) {
                             if (newValue != null) {
                               setState(() {
