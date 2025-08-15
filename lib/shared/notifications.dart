@@ -115,7 +115,7 @@ class NotificationService extends ChangeNotifier {
     // Try to read theme info immediately (not in a future)
     try {
       if (contextIsValid) {
-        isDarkMode = Theme.of(safeContext!).brightness == Brightness.dark;
+        isDarkMode = Theme.of(safeContext).brightness == Brightness.dark;
         
         // Use theme-aware colors
         if (title.contains('Completed')) {

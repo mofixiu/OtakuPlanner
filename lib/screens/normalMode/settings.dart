@@ -8,6 +8,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/screens/entryScreens/changePassword.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/screens/entryScreens/comingSoon.dart';
+import 'package:otakuplanner/screens/entryScreens/loginPage.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
@@ -70,7 +72,10 @@ class _SettingsState extends State<Settings> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.email, color: isDarkMode ? Colors.lightBlue : Colors.blue),
+                      Icon(
+                        Icons.email,
+                        color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         "Email Notification Preferences",
@@ -107,7 +112,8 @@ class _SettingsState extends State<Settings> {
                     "Feature Announcements",
                     "Receive notifications about new features and updates",
                     _featureAnnouncements,
-                    (value) => setModalState(() => _featureAnnouncements = value),
+                    (value) =>
+                        setModalState(() => _featureAnnouncements = value),
                   ),
                   _buildPreferenceToggle(
                     "Achievement Reports",
@@ -135,13 +141,17 @@ class _SettingsState extends State<Settings> {
                         onPressed: () {
                           Navigator.pop(context);
                           setState(() {
-                            isEmail = _weeklySummary || _taskReminders || 
-                                      _featureAnnouncements || _achievementReports;
+                            isEmail =
+                                _weeklySummary ||
+                                _taskReminders ||
+                                _featureAnnouncements ||
+                                _achievementReports;
                           });
                           // Here you would save these preferences to your backend/storage
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isDarkMode ? Colors.lightBlue : Colors.blue,
+                          backgroundColor:
+                              isDarkMode ? Colors.lightBlue : Colors.blue,
                           foregroundColor: Colors.white,
                         ),
                         child: Text("Save Preferences"),
@@ -151,21 +161,21 @@ class _SettingsState extends State<Settings> {
                 ],
               ),
             );
-          }
+          },
         );
       },
     );
   }
 
   Widget _buildPreferenceToggle(
-    String title, 
-    String subtitle, 
-    bool value, 
-    ValueChanged<bool> onChanged
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
   ) {
     final textColor = OtakuPlannerTheme.getTextColor(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -175,13 +185,7 @@ class _SettingsState extends State<Settings> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 16, color: textColor)),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -195,7 +199,10 @@ class _SettingsState extends State<Settings> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: isDarkMode ? Colors.lightBlue : OtakuPlannerTheme.getButtonColor(context),
+            activeColor:
+                isDarkMode
+                    ? Colors.lightBlue
+                    : OtakuPlannerTheme.getButtonColor(context),
           ),
         ],
       ),
@@ -204,8 +211,12 @@ class _SettingsState extends State<Settings> {
 
   @override
   Widget build(BuildContext context) {
-    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
-    _isDarkMode = Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark;
+   final username = Provider.of<UserProvider>(context).username;
+   final email = Provider.of<UserProvider>(context).email;
+    final profileImagePath =
+        Provider.of<UserProvider>(context).profileImagePath;
+    _isDarkMode =
+        Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark;
 
     // Get theme colors
     // final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -237,12 +248,7 @@ class _SettingsState extends State<Settings> {
           GestureDetector(
             onTap: profile,
             child: Padding(
-            
-              
-              padding: const EdgeInsets.only(
-                    top: 12.0,
-                    left: 12,
-                    right: 12,),
+              padding: const EdgeInsets.only(top: 12.0, left: 12, right: 12),
               child: CircleAvatar(
                 backgroundColor: buttonColor,
                 backgroundImage:
@@ -298,19 +304,13 @@ class _SettingsState extends State<Settings> {
                           children: [
                             SizedBox(height: 20),
                             Text(
-                              "User",
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: textColor,
-                              ),
+                              "${username[0].toUpperCase()}${username.substring(1).toLowerCase()}",
+                              style: TextStyle(fontSize: 18, color: textColor),
                             ),
                             SizedBox(height: 2),
                             Text(
-                              "placeholder@email.com",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColor,
-                              ),
+                              email,
+                              style: TextStyle(fontSize: 12, color: textColor),
                             ),
                           ],
                         ),
@@ -350,11 +350,8 @@ class _SettingsState extends State<Settings> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Dark Mode",
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: textColor,
-                            ),
+                            _isDarkMode ? "Dark Mode" : "Light Mode",
+                            style: TextStyle(fontSize: 15, color: textColor),
                           ),
                           Switch(
                             value: _isDarkMode,
@@ -378,7 +375,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.3,
+                height: MediaQuery.of(context).size.height / 4.0,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -396,10 +393,7 @@ class _SettingsState extends State<Settings> {
                     children: [
                       Text(
                         "Preferences",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 20, color: textColor),
                       ),
                       SizedBox(height: 2),
                       Row(
@@ -407,14 +401,35 @@ class _SettingsState extends State<Settings> {
                         children: [
                           Text(
                             "Anime Mode",
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: textColor,
+                            style: TextStyle(fontSize: 15, color: textColor),
+                          ),
+                          SizedBox(width: 5),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: buttonColor,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(6.0),
+                              child: Center(
+                                child: Text(
+                                  "Beta",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
                             ),
                           ),
                           Switch(
                             value: _isAnimeMode,
                             onChanged: (value) {
+                              if (value) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const Comingsoon(),
+                                  ),
+                                );
+                              }
                               setState(() {
                                 _isAnimeMode = value;
                               });
@@ -556,7 +571,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 3.6,
+                height: MediaQuery.of(context).size.height / 4.2,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -574,10 +589,7 @@ class _SettingsState extends State<Settings> {
                     children: [
                       Text(
                         "Notifications",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 20, color: textColor),
                       ),
                       SizedBox(height: 2),
                       Row(
@@ -599,9 +611,58 @@ class _SettingsState extends State<Settings> {
                           Switch(
                             value: isApp,
                             onChanged: (value) {
-                              setState(() {
-                                isApp = value;
-                              });
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Row(
+                                      children: [
+                                        FaIcon(
+                                          FontAwesomeIcons.bell,
+                                          color: buttonColor,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          "This will turn on in app notifications",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    content: Text(
+                                      "This will enable in-app notifications. Are you sure you want to proceed?",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text(
+                                          "Cancel",
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                          setState(() {});
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: buttonColor,
+                                        ),
+                                        child: Text("Enable"),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
                             },
                             activeColor: buttonColor,
                           ),
@@ -660,33 +721,55 @@ class _SettingsState extends State<Settings> {
                               setState(() {
                                 isSystem = value;
                               });
-                            },
-                            activeColor: buttonColor,
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              FaIcon(FontAwesomeIcons.bell),
-                              SizedBox(width: 5),
-                              Text(
-                                "Popup Notifications",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: textColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Switch(
-                            value: isPopup,
-                            onChanged: (value) {
-                              setState(() {
-                                isPopup = value;
-                              });
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Row(
+                                      children: [
+                                        Icon(Icons.refresh, color: buttonColor),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          "This will turn on system notifications",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    content: Text(
+                                      "This will enable system notifications. Are you sure you want to proceed?",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text(
+                                          "Cancel",
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                          setState(() {});
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: buttonColor,
+                                        ),
+                                        child: Text("Enable"),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
                             },
                             activeColor: buttonColor,
                           ),
@@ -705,7 +788,7 @@ class _SettingsState extends State<Settings> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [boxShadow],
                 ),
-                child:Padding(
+                child: Padding(
                   padding: const EdgeInsets.only(
                     top: 12.0,
                     left: 12,
@@ -716,20 +799,17 @@ class _SettingsState extends State<Settings> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.star_border_outlined, color: Colors.amber),
+                          FaIcon(FontAwesomeIcons.bell, color: buttonColor),
                           SizedBox(width: 5),
                           Text(
                             "Premium Plan",
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: textColor,
-                            ),
+                            style: TextStyle(fontSize: 20, color: textColor),
                           ),
                         ],
                       ),
                       SizedBox(height: 5),
                       Padding(
-                        padding:const EdgeInsets.only(left: 8.0),
+                        padding: const EdgeInsets.only(left: 8.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -779,7 +859,7 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.01),
               Container(
-                height: MediaQuery.of(context).size.height / 4.3,
+                height: MediaQuery.of(context).size.height / 4.0,
                 width: MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: cardColor,
@@ -797,10 +877,7 @@ class _SettingsState extends State<Settings> {
                     children: [
                       Text(
                         "Account Settings",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 20, color: textColor),
                       ),
                       SizedBox(height: 5),
                       CustomButton(
@@ -944,7 +1021,8 @@ class _SettingsState extends State<Settings> {
                                                               ),
                                                           borderSide:
                                                               BorderSide(
-                                                                color: buttonColor,
+                                                                color:
+                                                                    buttonColor,
                                                                 width: 1.5,
                                                               ),
                                                         ),
@@ -1109,10 +1187,7 @@ class _SettingsState extends State<Settings> {
                     children: [
                       Text(
                         "Reset",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontSize: 20, color: textColor),
                       ),
                       SizedBox(height: 10),
                       Row(
@@ -1125,10 +1200,7 @@ class _SettingsState extends State<Settings> {
                                   return AlertDialog(
                                     title: Row(
                                       children: [
-                                        Icon(
-                                          Icons.refresh,
-                                          color: buttonColor,
-                                        ),
+                                        Icon(Icons.refresh, color: buttonColor),
                                         SizedBox(width: 10),
                                         Text(
                                           "Reset Task Data",
@@ -1180,9 +1252,16 @@ class _SettingsState extends State<Settings> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Center(
-                                child: Text(
-                                  "Reset task data",
-                                  style: TextStyle(fontSize: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(width: 5),
+                                    Icon(Icons.refresh, color: buttonColor),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      "Reset task data",
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1196,10 +1275,7 @@ class _SettingsState extends State<Settings> {
                                   return AlertDialog(
                                     title: Row(
                                       children: [
-                                        Icon(
-                                          Icons.restore,
-                                          color: buttonColor,
-                                        ),
+                                        Icon(Icons.restore, color: buttonColor),
                                         SizedBox(width: 10),
                                         Text(
                                           "Restore Defaults",
@@ -1257,9 +1333,16 @@ class _SettingsState extends State<Settings> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Center(
-                                child: Text(
-                                  "Restore defaults",
-                                  style: TextStyle(fontSize: 12),
+                                child: Row(
+                                  children: [
+                                    SizedBox(width: 5),
+                                    Icon(Icons.restore, color: buttonColor),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      "Restore defaults",
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1272,13 +1355,18 @@ class _SettingsState extends State<Settings> {
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.02),
               Tustom(
-                ontap: () {},
+                ontap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Login()),
+                  );
+                },
                 data: "LOG OUT",
                 textcolor: Colors.white,
-  backgroundcolor: const Color(0xFF8B0020), 
+                backgroundcolor: const Color(0xFF8B0020),
                 width: MediaQuery.of(context).size.width,
                 height: 50,
-                
               ),
             ],
           ),

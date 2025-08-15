@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 
 class CustomButton extends StatelessWidget {
-  final VoidCallback ontap;
+  final VoidCallback? ontap;
   final String data;
   final Color textcolor, backgroundcolor;
   final double width,height;
@@ -27,7 +27,7 @@ class CustomButton extends StatelessWidget {
         height: height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(5),
-          color: backgroundcolor,
+          color: ontap == null ? backgroundcolor.withOpacity(0.6) : backgroundcolor,  
         ),
         child: Text(
           textAlign: TextAlign.center,

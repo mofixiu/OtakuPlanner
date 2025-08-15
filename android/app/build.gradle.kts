@@ -7,8 +7,16 @@ plugins {
 
 android {
     namespace = "com.example.otakuplanner"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 35  
+    // Remove NDK version requirement
+    
+    // Disable NDK if not needed
+    packagingOptions {
+        pickFirst("**/libc++_shared.so")
+        pickFirst("**/libjsc.so")
+    }
+    // Remove the problematic ndkVersion line or specify a version like:
+    // ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

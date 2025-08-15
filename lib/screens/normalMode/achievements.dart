@@ -1,11 +1,13 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, prefer_final_fields, no_leading_underscores_for_local_identifiers
 
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/otakuPlannerAI.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
+import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:provider/provider.dart';
 import 'package:step_progress_indicator/step_progress_indicator.dart';
@@ -284,7 +286,7 @@ class _AchievementsState extends State<Achievements> {
   Map<String, bool> _expandedCategories = {};
   final Set<int> _completedAchievements = {1, 3, 5};
   Map<int, int> _achievementProgress = {};
-final int level = 2;  
+  final int level = 2;
   @override
   void initState() {
     super.initState();
@@ -304,32 +306,42 @@ final int level = 2;
       if (_completedAchievements.contains(achievement.id)) {
         _achievementProgress[achievement.id] = achievement.totalRequired;
       } else {
-        _achievementProgress[achievement.id] = (achievement.id % achievement.totalRequired);
+        _achievementProgress[achievement.id] =
+            (achievement.id % achievement.totalRequired);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-     void artificialInte() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const OtakuPlannerAIPage()),
-    );
-  }
-   void profile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const Profile()),
-    );
-  }
+    void artificialInte() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const OtakuPlannerAIPage()),
+      );
+    }
 
+    void profile() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Profile()),
+      );
+    }
+
+    void _showNotificationsDialog() {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return NotificationDropdown();
+        },
+      );
+    }
 
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final cardColor = OtakuPlannerTheme.getCardColor(context);
     final textColor = OtakuPlannerTheme.getTextColor(context);
     final borderColor = OtakuPlannerTheme.getBorderColor(context);
-        final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
 
     final profileImagePath =
         Provider.of<UserProvider>(context).profileImagePath;
@@ -350,47 +362,58 @@ final int level = 2;
       },
       child: Scaffold(
         appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
-        ),
-        centerTitle: false,
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 2,
-        scrolledUnderElevation: 2,
-        title: Text(
-          "OtakuPlanner",
-          style: TextStyle(
-            fontSize: 25,
-            fontWeight: FontWeight.w900,
-            color: textColor,
+          leading: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: Image.asset("assets/images/otaku.jpg", fit: BoxFit.contain),
           ),
-        ),
-        actions: [
-          GestureDetector(
-            onTap: profile,
-            child: Padding(
-            
-              
-              padding: const EdgeInsets.only(
-                    top: 12.0,
-                    left: 12,
-                    right: 12,),
-              child: CircleAvatar(
-                backgroundColor: buttonColor,
-                backgroundImage:
-                    profileImagePath.isNotEmpty
-                        ? FileImage(File(profileImagePath))
-                        : null,
-                child:
-                    profileImagePath.isEmpty
-                        ? Icon(Icons.person, color: Colors.grey)
-                        : null,
-              ),
+          centerTitle: false,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          elevation: 2,
+          scrolledUnderElevation: 2,
+          title: Text(
+            "OtakuPlanner",
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+              color: textColor,
             ),
           ),
-        ],
-      ),
+          actions: [
+            GestureDetector(
+              onTap: _showNotificationsDialog,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 15.0),
+                child: NotificationBadge(
+                  child: CircleAvatar(
+                    backgroundColor: buttonColor,
+                    child: FaIcon(
+                      FontAwesomeIcons.bell,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: profile,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: CircleAvatar(
+                  backgroundColor: buttonColor,
+                  backgroundImage:
+                      profileImagePath.isNotEmpty
+                          ? FileImage(File(profileImagePath))
+                          : null,
+                  child:
+                      profileImagePath.isEmpty
+                          ? Icon(Icons.person, color: Colors.grey)
+                          : null,
+                ),
+              ),
+            ),
+          ],
+        ),
         body: Padding(
           padding: const EdgeInsets.only(top: 10.0, left: 16.0, right: 16),
           child: Column(
@@ -407,13 +430,13 @@ final int level = 2;
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(20),
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height * 0.16,
+                ),
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: borderColor,
-                    width: 0.4,
-                  ),
+                  border: Border.all(color: borderColor, width: 0.4),
                   boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
                 ),
                 child: Row(
@@ -447,7 +470,14 @@ final int level = 2;
                           ),
                         ),
                         Text(
-                          "You've unlocked $completedCount of $totalCount achievements and\nearned 150 points",
+                          "You've unlocked $completedCount of $totalCount achievements ",
+                          style: TextStyle(
+                            fontSize: 12.2,
+                            color: textColor.withOpacity(0.8),
+                          ),
+                        ),
+                        Text(
+                          "and earned 150 points",
                           style: TextStyle(
                             fontSize: 12.2,
                             color: textColor.withOpacity(0.8),
@@ -475,7 +505,9 @@ final int level = 2;
                   padding: EdgeInsets.zero,
                   itemCount: categorizedAchievements.length,
                   itemBuilder: (context, index) {
-                    final category = categorizedAchievements.keys.elementAt(index);
+                    final category = categorizedAchievements.keys.elementAt(
+                      index,
+                    );
                     final achievements = categorizedAchievements[category]!;
 
                     return _buildCategorySection(
@@ -493,22 +525,22 @@ final int level = 2;
             ],
           ),
         ),
-         floatingActionButton: FloatingActionButton(
-        onPressed: artificialInte,
-        backgroundColor: Colors.transparent,
-        // elevation: 1,
-        child: ClipOval(
-          child: Image.asset(
-            isDarkMode
-                ? "assets/images/darkai.jpg"
-                : "assets/images/lightai.jpg",
-            width: 56,
-            height: 56,
-            fit: BoxFit.cover,
+        floatingActionButton: FloatingActionButton(
+          onPressed: artificialInte,
+          backgroundColor: Colors.transparent,
+          // elevation: 1,
+          child: ClipOval(
+            child: Image.asset(
+              isDarkMode
+                  ? "assets/images/darkai.jpg"
+                  : "assets/images/lightai.jpg",
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
-      ),
-     
+
         bottomNavigationBar: BottomNavBar(currentIndex: _currentIndex),
       ),
     );
@@ -540,8 +572,14 @@ final int level = 2;
     Color textColor,
     Color borderColor,
   ) {
-    final completedAchievements = achievements.where((a) => _completedAchievements.contains(a.id)).toList();
-    final inProgressAchievements = achievements.where((a) => !_completedAchievements.contains(a.id)).toList();
+    final completedAchievements =
+        achievements
+            .where((a) => _completedAchievements.contains(a.id))
+            .toList();
+    final inProgressAchievements =
+        achievements
+            .where((a) => !_completedAchievements.contains(a.id))
+            .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,7 +587,8 @@ final int level = 2;
         InkWell(
           onTap: () {
             setState(() {
-              _expandedCategories[category] = !(_expandedCategories[category] ?? true);
+              _expandedCategories[category] =
+                  !(_expandedCategories[category] ?? true);
             });
           },
           child: Padding(
@@ -592,15 +631,17 @@ final int level = 2;
                     ),
                   ),
                 ),
-              ...inProgressAchievements.map((achievement) => _buildAchievementItem(
-                    context,
-                    achievement,
-                    isDarkMode,
-                    cardColor,
-                    textColor,
-                    borderColor,
-                    isCompleted: false,
-                  )),
+              ...inProgressAchievements.map(
+                (achievement) => _buildAchievementItem(
+                  context,
+                  achievement,
+                  isDarkMode,
+                  cardColor,
+                  textColor,
+                  borderColor,
+                  isCompleted: false,
+                ),
+              ),
               if (completedAchievements.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(left: 8, top: 12, bottom: 8),
@@ -612,15 +653,17 @@ final int level = 2;
                     ),
                   ),
                 ),
-              ...completedAchievements.map((achievement) => _buildAchievementItem(
-                    context,
-                    achievement,
-                    isDarkMode,
-                    cardColor,
-                    textColor,
-                    borderColor,
-                    isCompleted: true,
-                  )),
+              ...completedAchievements.map(
+                (achievement) => _buildAchievementItem(
+                  context,
+                  achievement,
+                  isDarkMode,
+                  cardColor,
+                  textColor,
+                  borderColor,
+                  isCompleted: true,
+                ),
+              ),
               const SizedBox(height: 12),
             ],
           ),
@@ -661,7 +704,27 @@ final int level = 2;
             color: isCompleted ? Colors.green : borderColor,
             width: isCompleted ? 1 : 0.4,
           ),
-          boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
+          // Enhanced elevation with multiple shadows
+          boxShadow: [
+            BoxShadow(
+              color:
+                  isDarkMode
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.15),
+              spreadRadius: 1,
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color:
+                  isDarkMode
+                      ? Colors.black.withOpacity(0.2)
+                      : Colors.grey.withOpacity(0.1),
+              spreadRadius: 0,
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -704,13 +767,19 @@ final int level = 2;
                           achievement.description,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[300]
+                                    : Colors.grey[700],
                           ),
                         ),
                       ),
                       if (isCompleted)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
@@ -731,8 +800,14 @@ final int level = 2;
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: current / total,
-                      backgroundColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-                      color: isCompleted ? Colors.green : OtakuPlannerTheme.accentColor,
+                      backgroundColor:
+                          isDarkMode
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
+                      color:
+                          isCompleted
+                              ? Colors.green
+                              : OtakuPlannerTheme.accentColor,
                       minHeight: 4,
                     ),
                   ),
@@ -799,90 +874,92 @@ void showAchievementDialog(
 
   showDialog(
     context: context,
-    builder: (context) => Dialog(
-      backgroundColor: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(icon, style: const TextStyle(fontSize: 40)),
-            const SizedBox(height: 12),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 20),
-            StepProgressIndicator(
-              totalSteps: total,
-              currentStep: current,
-              size: 8,
-              padding: 0,
-              roundedEdges: const Radius.circular(10),
-              selectedGradientColor: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  isDarkMode ? Colors.lightBlue : OtakuPlannerTheme.accentColor,
-                  isDarkMode ? Colors.lightBlue.shade700 : OtakuPlannerTheme.accentColor,
-                ],
-              ),
-              unselectedGradientColor: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-                  isDarkMode ? Colors.grey.shade600 : Colors.grey.shade200,
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "$current/$total tasks complete",
-              style: TextStyle(
-                fontSize: 14,
-                color: textColor.withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              current >= total ? "Completed" : "In Progress",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: current >= total ? Colors.green : Colors.orange,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                foregroundColor: isDarkMode ? Colors.white : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+    builder:
+        (context) => Dialog(
+          backgroundColor: cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
                 ),
-              ),
-              child: Text("Close"),
+                const SizedBox(height: 8),
+                Text(icon, style: const TextStyle(fontSize: 40)),
+                const SizedBox(height: 12),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 16, color: textColor),
+                ),
+                const SizedBox(height: 20),
+                StepProgressIndicator(
+                  totalSteps: total,
+                  currentStep: current,
+                  size: 8,
+                  padding: 0,
+                  roundedEdges: const Radius.circular(10),
+                  selectedGradientColor: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      isDarkMode
+                          ? Colors.lightBlue
+                          : OtakuPlannerTheme.accentColor,
+                      isDarkMode
+                          ? Colors.lightBlue.shade700
+                          : OtakuPlannerTheme.accentColor,
+                    ],
+                  ),
+                  unselectedGradientColor: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                      isDarkMode ? Colors.grey.shade600 : Colors.grey.shade200,
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "$current/$total tasks complete",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor.withOpacity(0.8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  current >= total ? "Completed" : "In Progress",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: current >= total ? Colors.green : Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor: isDarkMode ? Colors.white : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text("Close"),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
   );
 }

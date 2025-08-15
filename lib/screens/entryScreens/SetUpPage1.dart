@@ -1,3 +1,5 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/screens/entryScreens/SetUpPage2.dart';
 import 'package:otakuplanner/screens/entryScreens/comingSoon.dart';
@@ -31,14 +33,9 @@ class _SetupPage1State extends State<SetupPage1> {
             data:OtakuPlannerTheme.lightTheme,
 
       child: Scaffold(
-        body: SingleChildScrollView(
+        body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.only(
-              top: 120.0,
-              left: 30,
-              right: 30,
-              bottom: 120,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
               children: [
                 Center(
@@ -78,7 +75,7 @@ class _SetupPage1State extends State<SetupPage1> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-      
+                
                 GestureDetector(
                   onTap: animenext,
                   child: Stack(
@@ -107,12 +104,12 @@ class _SetupPage1State extends State<SetupPage1> {
                           ),
                         ),
                       ),
-      
+                
                       Positioned(
                         bottom: 20,
                         child: Text(
                           "Immerse yourself in an anime-inspired experience.",
-      
+                
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
@@ -120,7 +117,7 @@ class _SetupPage1State extends State<SetupPage1> {
                           ),
                         ),
                       ),
-      
+                
                       Positioned(
                         bottom: 40,
                         child: Text(
@@ -157,7 +154,7 @@ class _SetupPage1State extends State<SetupPage1> {
                 SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                 GestureDetector(
                   onTap: normalnext,
-      
+                
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -185,7 +182,7 @@ class _SetupPage1State extends State<SetupPage1> {
                           ),
                         ),
                       ),
-      
+                
                       Positioned(
                         bottom: 20,
                         child: Text(
@@ -197,7 +194,7 @@ class _SetupPage1State extends State<SetupPage1> {
                           ),
                         ),
                       ),
-      
+                
                       Positioned(
                         bottom: 40,
                         child: Text(

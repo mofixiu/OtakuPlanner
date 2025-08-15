@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // import 'package:intl/intl.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/editProfile.dart';
+import 'package:otakuplanner/screens/request.dart';
 import 'package:otakuplanner/themes/theme.dart'; // Add theme import
 import 'package:otakuplanner/widgets/customButtonwithSmallerTextandanIcon.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +19,46 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
+  int _completedTasksCount = 0;
+  Map<String, dynamic>? _userStatistics;
+  bool _isLoadingStats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserStatistics();
+  }
+
+  Future<void> _loadUserStatistics() async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      // Option 1: Get just completed tasks count
+      final completedCount = await getCompletedTasksCount(userProvider.userId!);
+      
+      // Option 2: Get full user profile with statistics
+      final profileData = await getUserProfile(userProvider.userId!);
+      
+      setState(() {
+        _completedTasksCount = completedCount;
+        if (profileData != null && profileData['data'] != null) {
+          _userStatistics = profileData['data']['statistics'];
+        }
+        _isLoadingStats = false;
+      });
+        } catch (e) {
+      log('Error loading user statistics: $e');
+      setState(() {
+        _isLoadingStats = false;
+      });
+    }
+  }
+
+  // Add this method to refresh stats when user completes tasks
+  Future<void> refreshUserStatistics() async {
+    await _loadUserStatistics();
+  }
+
   void editProfile() {
     Navigator.push(
       context,
@@ -25,8 +67,29 @@ class _ProfileState extends State<Profile> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh stats when returning to profile
+    _loadUserStatistics();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final username = Provider.of<UserProvider>(context).username;
+    final email = Provider.of<UserProvider>(context).email;
     final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    final fullName = Provider.of<UserProvider>(context).fullName;
+    final joinDate = Provider.of<UserProvider>(context).joinDate;
+    
+    String formattedJoinDate = 'Not available';
+    if (joinDate.isNotEmpty) {
+      try {
+        final date = DateTime.parse(joinDate);
+        formattedJoinDate = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      } catch (e) {
+        formattedJoinDate = 'Invalid Date';
+      }
+    }
 
     // Get theme-specific colors
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -119,7 +182,7 @@ class _ProfileState extends State<Profile> {
                         height: MediaQuery.of(context).size.height * 0.005,
                       ),
                       Text(
-                        'User Name Placeholder',
+                           fullName.isNotEmpty ? fullName : 'Not specified',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -141,7 +204,7 @@ class _ProfileState extends State<Profile> {
                         height: MediaQuery.of(context).size.height * 0.005,
                       ),
                       Text(
-                        'user@email.com',
+                        email,
                         style: TextStyle(
                           fontSize: 14,
                           color: textColor,
@@ -202,7 +265,7 @@ class _ProfileState extends State<Profile> {
                               ),
                               SizedBox(height: 1),
                               Text(
-                                '@user',
+                                '${username[0].toUpperCase()}${username.substring(1).toLowerCase()}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: textColor,
@@ -236,7 +299,7 @@ class _ProfileState extends State<Profile> {
                               ),
                               SizedBox(height: 1),
                               Text(
-                                'DD-MM-YYYY',
+                                formattedJoinDate,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: textColor,
@@ -269,13 +332,19 @@ class _ProfileState extends State<Profile> {
                                 ),
                               ),
                               SizedBox(height: 1),
-                              Text(
-                                '4',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: textColor,
-                                ),
-                              ),
+                              _isLoadingStats
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 12,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(
+                                      '$_completedTasksCount',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: textColor,
+                                      ),
+                                    ),
                             ],
                           ),
                         ],
@@ -482,6 +551,7 @@ class _ProfileState extends State<Profile> {
                                   color: textColor,
                                 ),
                               ),
+                              SizedBox(height: 10),
                             ],
                           ),
                         ],

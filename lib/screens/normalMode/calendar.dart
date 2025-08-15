@@ -1,13 +1,18 @@
+// ignore_for_file: unused_element, use_build_context_synchronously, sized_box_for_whitespace
+
+import 'dart:developer' show log;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:otakuplanner/models/taskMain.dart';
+import 'package:otakuplanner/providers/category_provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/screens/normalMode/task_dialog2.dart';
-import 'package:otakuplanner/shared/categories.dart';
+import 'package:otakuplanner/screens/request.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/themes/theme.dart';
 import 'package:otakuplanner/widgets/bottomNavBar.dart';
@@ -60,7 +65,7 @@ class Calendar extends StatefulWidget {
   @override
   State<Calendar> createState() => _CalendarState();
 }
-  
+
 class _CalendarState extends State<Calendar> {
   final int _currentIndex = 1;
   DateTime _focusedDay = DateTime.now();
@@ -74,19 +79,25 @@ class _CalendarState extends State<Calendar> {
       DateTime.now().month,
       DateTime.now().day,
     );
-    _selectedDay = today;
+  _selectedDay = today;
     _focusedDay = today;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    
+    // Only proceed if the widget is still mounted
+    if (!mounted) return;
+    
     _taskProvider = Provider.of<TaskProvider>(context, listen: false);
 
     // Force refresh when navigating to this page
-    setState(() {
-      // This will trigger a rebuild with the latest tasks from TaskProvider
-    });
+    if (mounted) {
+      setState(() {
+        // This will trigger a rebuild with the latest tasks from TaskProvider
+      });
+    }
   }
 
   void _showNotificationsDialog() {
@@ -134,17 +145,18 @@ class _CalendarState extends State<Calendar> {
                         hasTasks
                             ? "Add Another Task for ${formatDateWithOrdinal(normalizedSelectedDay)}"
                             : "Add Task for ${formatDateWithOrdinal(normalizedSelectedDay)}",
-                    onSubmit: (title, category, time) {
-                      // Time validation for today
+                    onSubmit: (title, category, time) async {
+                      // Capture providers and context BEFORE any async operations
+                      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+                      final userProvider = Provider.of<UserProvider>(context, listen: false);
+                      final scaffoldMessenger = ScaffoldMessenger.of(context);
 
+                      // Time validation for today
                       if (isToday) {
-                        // Parse the time string (assuming format like "10:00 AM")
                         final now = DateTime.now();
                         final timeFormat = DateFormat("hh:mm a");
                         try {
                           final taskTime = timeFormat.parse(time);
-
-                          // Create a DateTime with today's date and the task time
                           final taskDateTime = DateTime(
                             now.year,
                             now.month,
@@ -153,53 +165,106 @@ class _CalendarState extends State<Calendar> {
                             taskTime.minute,
                           );
 
-                          // Compare with current time
                           if (taskDateTime.isBefore(now)) {
-                            NotificationService.showToast(
-                              context,
-                              "Invalid Time",
-                              "Cannot schedule tasks for times that have already passed",
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "Cannot schedule tasks for times that have already passed",
+                                ),
+                              ),
                             );
-                            return; // Don't add the task
+                            return;
                           }
                         } catch (e) {
-                          // Handle invalid time format
-                          NotificationService.showToast(
-                            context,
-                            "Invalid Format",
-                            "Please enter a valid time format",
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text("Please enter a valid time format"),
+                            ),
                           );
                           return;
                         }
                       }
 
-                      // Original task adding logic
                       final formattedCategory =
                           category[0].toUpperCase() +
                           category.substring(1).toLowerCase();
-                      final task = Task(
+
+                      // Create local task WITHOUT ID first
+                      final localTask = Task(
                         title: title,
                         category: formattedCategory,
-                        time: time,
+                        time: time, // Keep 12-hour format for display
+                        date: normalizedSelectedDay.toIso8601String(),
                         color: Task.getRandomColor(),
                         icon:
                             categoryIcons[formattedCategory] ??
                             FontAwesomeIcons.listCheck,
                         isChecked: false,
                       );
-                      taskProvider.addTask(normalizedSelectedDay, task);
-                      if (!Categories.categories.contains(formattedCategory)) {
-                        Categories.categories.add(formattedCategory);
+
+                      // Add to TaskProvider immediately
+                      taskProvider.addTask(normalizedSelectedDay, localTask);
+
+                      // Save to database in background
+                      try {
+                        final dateOnlyString =
+                            '${normalizedSelectedDay.year}-${normalizedSelectedDay.month.toString().padLeft(2, '0')}-${normalizedSelectedDay.day.toString().padLeft(2, '0')}';
+
+                        // Convert to 24-hour format for database storage
+                        final databaseTime = _convertTo24HourFormat(time);
+
+                        final taskMain = TaskMain(
+                          title: title,
+                          category: formattedCategory,
+                          time: databaseTime, // Store 24-hour format in database
+                          date: dateOnlyString,
+                          userId: userProvider.userId,
+                          completed: false,
+                        );
+
+                        log('Saving calendar task with time: display=$time, database=$databaseTime');
+
+                        final response = await saveTaskToDatabase(taskMain);
+                        if (response != null && response['data'] != null) {
+                          final taskId = response['data']['id'];
+
+                          // Update the task with database ID (keep display format)
+                          final updatedTask = Task(
+                            id: taskId,
+                            title: localTask.title,
+                            category: localTask.category,
+                            time: time, // Keep 12-hour format for display
+                            date: localTask.date,
+                            color: localTask.color,
+                            icon: localTask.icon,
+                            isChecked: localTask.isChecked,
+                          );
+
+                          // Replace in provider
+                          taskProvider.editTask(normalizedSelectedDay, localTask, updatedTask);
+                          log('Calendar task saved with ID: $taskId');
+                        }
+                      } catch (e) {
+                        log('Failed to save calendar task: $e');
                       }
 
-                      // Show notification for task added
+                      // Add category if new
+                      final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+
+                      if (!categoryProvider.categoryExists(formattedCategory)) {
+                        await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+                      }
+
+                      // Show success message using captured messenger
                       final formattedDate = formatDateWithOrdinal(
                         normalizedSelectedDay,
                       );
-                      NotificationService.showToast(
-                        context,
-                        "Task Added",
-                        "'$title' has been scheduled for $formattedDate",
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "'$title' has been scheduled for $formattedDate",
+                          ),
+                        ),
                       );
                     },
                   );
@@ -413,6 +478,7 @@ class _CalendarState extends State<Calendar> {
                                                 category: task.category,
                                                 time: task.time,
                                                 color: task.color,
+                                                date: task.date,
                                                 icon: task.icon,
                                                 isChecked: task.isChecked,
                                                 isRecurring:
@@ -440,7 +506,7 @@ class _CalendarState extends State<Calendar> {
                                                   title,
                                                   category,
                                                   time,
-                                                ) {
+                                                ) async {
                                                   final formattedCategory =
                                                       category[0]
                                                           .toUpperCase() +
@@ -451,6 +517,8 @@ class _CalendarState extends State<Calendar> {
                                                     title: title,
                                                     category: formattedCategory,
                                                     time: time,
+                                                    date: task.date,
+
                                                     color:
                                                         nonRecurringCopy.color,
                                                     icon:
@@ -470,13 +538,11 @@ class _CalendarState extends State<Calendar> {
                                                   );
 
                                                   // Add the category if it's new
-                                                  if (!Categories.categories
-                                                      .contains(
-                                                        formattedCategory,
-                                                      )) {
-                                                    Categories.categories.add(
-                                                      formattedCategory,
-                                                    );
+                                                  final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+                                                  final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+                                                  if (!categoryProvider.categoryExists(formattedCategory)) {
+                                                    await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
                                                   }
 
                                                   NotificationService.showToast(
@@ -503,55 +569,42 @@ class _CalendarState extends State<Calendar> {
                                                 initialTitle: task.title,
                                                 initialCategory: task.category,
                                                 initialTime: task.time,
-                                                onSubmit: (
-                                                  title,
-                                                  category,
-                                                  time,
-                                                ) {
-                                                  final formattedCategory =
-                                                      category[0]
-                                                          .toUpperCase() +
-                                                      category
-                                                          .substring(1)
-                                                          .toLowerCase();
-                                                  final updatedTask = Task(
-                                                    title: title,
-                                                    category: formattedCategory,
-                                                    time: time,
-                                                    color:
-                                                        task.color, // Keep the same color
-                                                    icon:
-                                                        categoryIcons[formattedCategory] ??
-                                                        FontAwesomeIcons
-                                                            .listCheck,
-                                                    isChecked: task.isChecked,
-                                                    isRecurring:
-                                                        true, // Keep it recurring
-                                                  );
+                                                // Fix the incomplete Task constructor around line 587:
+onSubmit: (title, category, time) async {
+  final formattedCategory = category[0].toUpperCase() + category.substring(1).toLowerCase();
+  
+  final updatedTask = Task(
+    id: task.id, // Add the missing id property
+    title: title,
+    category: formattedCategory,
+    time: time,
+    date: task.date,
+    color: task.color, // Keep the same color
+    icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
+    isChecked: task.isChecked,
+    isRecurring: true, // Keep it recurring
+  );
 
-                                                  // Update all recurring instances
-                                                  taskProvider
-                                                      .editRecurringTask(
-                                                        task,
-                                                        updatedTask,
-                                                      );
+  // Update all recurring instances
+  taskProvider.editRecurringTask(
+    task,
+    updatedTask,
+  );
 
-                                                  // Add the category if needed
-                                                  if (!Categories.categories
-                                                      .contains(
-                                                        formattedCategory,
-                                                      )) {
-                                                    Categories.categories.add(
-                                                      formattedCategory,
-                                                    );
-                                                  }
+  // Add the category if needed
+  final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-                                                  NotificationService.showToast(
-                                                    context,
-                                                    "Recurring Tasks Updated",
-                                                    "All instances of '$originalTitle' have been updated",
-                                                  );
-                                                },
+  if (!categoryProvider.categoryExists(formattedCategory)) {
+    await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+  }
+
+  NotificationService.showToast(
+    context,
+    "All Tasks Updated",
+    "All instances of '${task.title}' have been updated",
+  );
+},
                                               );
                                             },
                                           ),
@@ -572,46 +625,40 @@ class _CalendarState extends State<Calendar> {
                                     initialTitle: task.title,
                                     initialCategory: task.category,
                                     initialTime: task.time,
-                                    onSubmit: (title, category, time) {
-                                      final formattedCategory =
-                                          category[0].toUpperCase() +
-                                          category.substring(1).toLowerCase();
-                                      final updatedTask = Task(
-                                        title: title,
-                                        category: formattedCategory,
-                                        time: time,
-                                        color:
-                                            task.color, // Keep the same color
-                                        icon:
-                                            categoryIcons[formattedCategory] ??
-                                            FontAwesomeIcons.listCheck,
-                                        isChecked: task.isChecked,
-                                        isRecurring:
-                                            task.isRecurring, // Maintain recurring status
-                                      );
-                                      taskProvider.editTask(
-                                        normalizedSelectedDay,
-                                        task,
-                                        updatedTask,
-                                      );
+                                    onSubmit: (title, category, time) async {
+  // Capture any context-dependent objects early
+  final mainScaffoldMessenger = ScaffoldMessenger.of(context);
+  final formattedCategory = category[0].toUpperCase() + category.substring(1).toLowerCase();
+  
+  final updatedTask = Task(
+    title: title,
+    category: formattedCategory,
+    time: time,
+    date: task.date,
+    color: task.color,
+    icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
+    isChecked: task.isChecked,
+    isRecurring: task.isRecurring,
+  );
+  
+  taskProvider.editTask(normalizedSelectedDay, task, updatedTask);
 
-                                      // Add the category if it doesn't exist
-                                      if (!Categories.categories.contains(
-                                        formattedCategory,
-                                      )) {
-                                        Categories.categories.add(
-                                          formattedCategory,
-                                        );
-                                      }
+  // Add the category if it's new
+  final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-                                      // Show notification for task update
-                                      NotificationService.showToast(
-                                        context,
-                                        "Task Updated",
-                                        "'$originalTitle' scheduled for $formattedDate has been updated",
-                                      );
-                                    },
-                                  );
+  if (!categoryProvider.categoryExists(formattedCategory)) {
+    await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+  }
+
+  // Use captured messenger
+  mainScaffoldMessenger.showSnackBar(
+    SnackBar( 
+      content: Text("'${task.title}' has been updated"),
+    ),
+  );
+}
+                                    );
                                 }
                               },
                             ),
@@ -627,6 +674,73 @@ class _CalendarState extends State<Calendar> {
   DateTime _normalizeDate(DateTime date) {
     return DateTime(date.year, date.month, date.day);
   }
+
+  // Add these helper methods to _CalendarState class in calendar.dart:
+
+// Helper method to convert 24-hour time from database to 12-hour display format
+String _convertTo12HourFormat(String time24Hour) {
+  try {
+    String time = time24Hour.trim();
+    
+    // If it already has AM/PM, return as is
+    if (time.toLowerCase().contains('am') || time.toLowerCase().contains('pm')) {
+      return time;
+    }
+    
+    // Split by colon
+    List<String> parts = time.split(':');
+    if (parts.length < 2) return time; // Return original if can't parse
+    
+    int hour = int.parse(parts[0]);
+    String minute = parts[1];
+    
+    // Convert from 24-hour to 12-hour format
+    String period = hour >= 12 ? 'PM' : 'AM';
+    
+    if (hour == 0) {
+      hour = 12; // 00:xx becomes 12:xx AM
+    } else if (hour > 12) {
+      hour = hour - 12; // 22:xx becomes 10:xx PM
+    }
+    // 12:xx stays 12:xx PM, 1-11:xx stay the same with appropriate AM/PM
+    
+    return '$hour:${minute.padLeft(2, '0')} $period'; // Changed padStart to padLeft
+  } catch (e) {
+    log('Error converting time format: $e');
+    return time24Hour; // Return original if conversion fails
+  }
+}
+
+// Helper method to convert 12-hour format to 24-hour format for database storage
+String _convertTo24HourFormat(String time12Hour) {
+  try {
+    String time = time12Hour.toLowerCase().trim();
+    bool isPM = time.contains('pm');
+    bool isAM = time.contains('am');
+    
+    // Remove AM/PM
+    time = time.replaceAll('pm', '').replaceAll('am', '').trim();
+    
+    // Split by colon
+    List<String> parts = time.split(':');
+    if (parts.length < 2) return time12Hour; // Return original if can't parse
+    
+    int hour = int.parse(parts[0]);
+    String minute = parts[1];
+    
+    // Convert to 24-hour format
+    if (isPM && hour != 12) {
+      hour += 12; // 1 PM = 13, 10 PM = 22
+    } else if (isAM && hour == 12) {
+      hour = 0; // 12 AM = 00
+    }
+    
+    return '${hour.toString().padLeft(2, '0')}:$minute'; // Changed padStart to padLeft
+  } catch (e) {
+    log('Error converting time format: $e');
+    return time12Hour; // Return original if conversion fails
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -764,10 +878,11 @@ class _CalendarState extends State<Calendar> {
                   final tasksForDay = taskProvider.tasks[_normalizeDate(day)];
                   if (tasksForDay != null && tasksForDay.isNotEmpty) {
                     // Get the color from the first task, or use a default color
-                    final Color dotColor = tasksForDay.isNotEmpty 
-                        ? tasksForDay.first.color 
-                        : buttonColor;
-                    
+                    final Color dotColor =
+                        tasksForDay.isNotEmpty
+                            ? tasksForDay.first.color
+                            : buttonColor;
+
                     return Positioned(
                       bottom: 1,
                       child: Container(
@@ -819,169 +934,1382 @@ class _CalendarState extends State<Calendar> {
                               itemCount: tasksForDay.length,
                               itemBuilder: (context, index) {
                                 final task = tasksForDay[index];
-                                return Card(
-                                  color: cardColor,
-                                  elevation: 1,
-                                  margin: EdgeInsets.symmetric(vertical: 4),
-                                  child: ListTile(
-                                    leading: Icon(
-                                      task.icon ?? FontAwesomeIcons.listCheck,
-                                      color: task.color,
-                                    ),
-                                    title: Text(
-                                      task.title,
-                                      style: TextStyle(color: textColor),
-                                    ),
-                                    subtitle: Text(
-                                      "${task.category} - ${task.time}",
-                                      style: TextStyle(
-                                        color: textColor.withOpacity(0.7),
-                                      ),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.edit,
-                                            color:
-                                                isDarkMode
-                                                    ? Colors.lightBlue
-                                                    : Colors.blue,
+
+                                // Replace the dialog content part with this implementation:
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    // Show task details modal when the task is tapped
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext dialogContext) {
+                                        return AlertDialog(
+                                          backgroundColor: cardColor,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                           ),
-                                          onPressed: () {
-                                            if (task.isRecurring &&
-                                                taskProvider
-                                                    .isRecurringTaskOnMultipleDates(
-                                                      task,
-                                                    )) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return AlertDialog(
-                                                    title: Text(
-                                                      'Edit Recurring Task',
-                                                    ),
-                                                    content: Text(
-                                                      'This is a recurring task. Do you want to edit all instances?',
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        child: Text(
-                                                          'This Instance Only',
-                                                        ),
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            context,
-                                                          );
-                                                          // Edit just this instance logic
-                                                          // Same as above
-                                                        },
-                                                      ),
-                                                      TextButton(
-                                                        child: Text(
-                                                          'All Instances',
-                                                        ),
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            context,
-                                                          );
-                                                          // Edit all instances logic
-                                                          // Same as above
-                                                        },
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              );
-                                            } else {
-                                              // Edit single task
-                                              // Same as above
-                                            }
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
+                                          title: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "Task Details",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                  color: textColor,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.close,
+                                                  color: textColor,
+                                                ),
+                                                onPressed:
+                                                    () =>
+                                                        Navigator.of(
+                                                          dialogContext,
+                                                        ).pop(),
+                                              ),
+                                            ],
                                           ),
-                                          onPressed: () {
-                                            if (task.isRecurring &&
-                                                taskProvider
-                                                    .isRecurringTaskOnMultipleDates(
-                                                      task,
-                                                    )) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return AlertDialog(
-                                                    title: Text(
-                                                      'Delete Recurring Task',
+                                          content: Container(
+                                            width: double.maxFinite,
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  // Task title
+                                                  Text(
+                                                    task.title,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 22,
+                                                      color: textColor,
                                                     ),
-                                                    content: Text(
-                                                      'This is a recurring task. Do you want to delete all instances?',
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        child: Text(
-                                                          'This Instance Only',
-                                                        ),
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            context,
-                                                          );
-                                                          taskProvider.deleteTask(
-                                                            normalizedSelectedDay,
-                                                            task,
-                                                          );
-                                                          NotificationService.showToast(
-                                                            context,
-                                                            "Task Deleted",
-                                                            "This instance of '${task.title}' has been deleted",
-                                                          );
-                                                        },
+                                                  ),
+                                                  SizedBox(height: 8),
+
+                                                  // Recurring tag - only show if task is recurring
+                                                  if (task.isRecurring == true)
+                                                    Container(
+                                                      margin: EdgeInsets.only(
+                                                        bottom: 16,
                                                       ),
-                                                      TextButton(
-                                                        child: Text(
-                                                          'All Instances',
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 6,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            isDarkMode
+                                                                ? Colors
+                                                                    .blue
+                                                                    .shade900
+                                                                : Colors
+                                                                    .blue
+                                                                    .shade100,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.repeat,
+                                                            size: 16,
+                                                            color:
+                                                                isDarkMode
+                                                                    ? Colors
+                                                                        .blue
+                                                                        .shade300
+                                                                    : Colors
+                                                                        .blue,
+                                                          ),
+                                                          SizedBox(width: 4),
+                                                          Text(
+                                                            "Recurring (Custom-Weekly)",
+                                                            style: TextStyle(
+                                                              color:
+                                                                  isDarkMode
+                                                                      ? Colors
+                                                                          .blue
+                                                                          .shade300
+                                                                      : Colors
+                                                                          .blue,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                              fontSize: 14,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+
+                                                  // Category
+                                                  Container(
+                                                    margin:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 8,
                                                         ),
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            context,
-                                                          );
+                                                    padding: EdgeInsets.all(16),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          isDarkMode
+                                                              ? Colors
+                                                                  .grey
+                                                                  .shade800
+                                                              : Colors
+                                                                  .grey
+                                                                  .shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          backgroundColor: task
+                                                              .color
+                                                              .withOpacity(0.2),
+                                                          child: Icon(
+                                                            task.icon ??
+                                                                FontAwesomeIcons
+                                                                    .listCheck,
+                                                            color: task.color,
+                                                            size: 16,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 16),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "Category",
+                                                              style: TextStyle(
+                                                                color: textColor
+                                                                    .withOpacity(
+                                                                      0.6,
+                                                                    ),
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              task.category,
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 16,
+                                                                color:
+                                                                    textColor,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+
+                                                  // Date
+                                                  Container(
+                                                    margin:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                        ),
+                                                    padding: EdgeInsets.all(16),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          isDarkMode
+                                                              ? Colors
+                                                                  .grey
+                                                                  .shade800
+                                                              : Colors
+                                                                  .grey
+                                                                  .shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          backgroundColor:
+                                                              (isDarkMode
+                                                                  ? Colors
+                                                                      .blue
+                                                                      .shade700
+                                                                  : Colors
+                                                                      .blue
+                                                                      .shade100),
+                                                          child: Icon(
+                                                            Icons
+                                                                .calendar_today,
+                                                            color:
+                                                                isDarkMode
+                                                                    ? Colors
+                                                                        .blue
+                                                                        .shade300
+                                                                    : Colors
+                                                                        .blue,
+                                                            size: 16,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 16),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "Date",
+                                                              style: TextStyle(
+                                                                color: textColor
+                                                                    .withOpacity(
+                                                                      0.6,
+                                                                    ),
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              DateFormat(
+                                                                "EEEE, MMMM d, yyyy",
+                                                              ).format(
+                                                                normalizedSelectedDay,
+                                                              ),
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 12.5,
+                                                                color:
+                                                                    textColor,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+
+                                                  // Time
+                                                  Container(
+                                                    margin:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                        ),
+                                                    padding: EdgeInsets.all(16),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          isDarkMode
+                                                              ? Colors
+                                                                  .grey
+                                                                  .shade800
+                                                              : Colors
+                                                                  .grey
+                                                                  .shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          backgroundColor:
+                                                              (isDarkMode
+                                                                  ? Colors
+                                                                      .orange
+                                                                      .shade700
+                                                                  : Colors
+                                                                      .orange
+                                                                      .shade100),
+                                                          child: Icon(
+                                                            Icons.access_time,
+                                                            color:
+                                                                isDarkMode
+                                                                    ? Colors
+                                                                        .orange
+                                                                        .shade300
+                                                                    : Colors
+                                                                        .orange,
+                                                            size: 16,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 16),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "Time",
+                                                              style: TextStyle(
+                                                                color: textColor
+                                                                    .withOpacity(
+                                                                      0.6,
+                                                                    ),
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              task.time,
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 16,
+                                                                color:
+                                                                    textColor,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+
+                                                  // Completion status - Not editable
+                                                  // Replace the existing Completion status section with this checkbox version:
+
+                                                  // Completion status with checkbox
+                                                  Container(
+                                                    margin:
+                                                        EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                        ),
+                                                    padding: EdgeInsets.all(16),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          isDarkMode
+                                                              ? Colors
+                                                                  .grey
+                                                                  .shade800
+                                                              : Colors
+                                                                  .grey
+                                                                  .shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Checkbox(
+                                                          value: task.isChecked,
+                                                          activeColor:
+                                                              Colors.green,
+                                                          checkColor:
+                                                              Colors.white,
+                                                          // onChanged: (bool? newValue) {
+                                                          //   // Create an updated task with toggled completion status
+                                                          //   final updatedTask = Task(
+                                                          //     title: task.title,
+                                                          //     category: task.category,
+                                                          //                                                     date: task.date,
+
+                                                          //     time: task.time,
+                                                          //     color: task.color,
+                                                          //     icon: task.icon,
+                                                          //     isChecked: newValue ?? false,
+                                                          //     isRecurring: task.isRecurring,
+                                                          //   );
+
+                                                          //   // Update the task in the provider
+                                                          //   taskProvider.editTask(
+                                                          //     normalizedSelectedDay,
+                                                          //     task,
+                                                          //     updatedTask,
+                                                          //   );
+
+                                                          //   // Close the dialog
+                                                          //   Navigator.of(dialogContext).pop();
+
+                                                          //   // Show a toast notification
+                                                          //   NotificationService.showToast(
+                                                          //     context,
+                                                          //     newValue == true ? "Task Completed" : "Task Marked as Incomplete",
+                                                          //     "'${task.title}' has been marked as ${newValue == true ? 'complete' : 'incomplete'}",
+                                                          //   );
+
+                                                          //   // Force rebuild of the view
+                                                          //   setState(() {});
+                                                          // },
+                                                          onChanged: (bool? newValue) async {
+  // Capture ALL context-dependent objects IMMEDIATELY before any async operations
+  final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+  final scaffoldMessenger = ScaffoldMessenger.of(context);
+  final navigator = Navigator.of(dialogContext);
+  
+  // Store values that might be needed later
+  final taskId = task.id;
+  final newCompletionStatus = newValue ?? false;
+
+  try {
+    // Create updated task
+    final updatedTask = Task(
+      id: taskId, // Preserve database ID
+      title: task.title,
+      category: task.category,
+      date: task.date,
+      time: task.time,
+      color: task.color,
+      icon: task.icon,
+      isChecked: newCompletionStatus,
+      isRecurring: task.isRecurring,
+    );
+
+    // Update in TaskProvider FIRST
+    taskProvider.editTask(normalizedSelectedDay, task, updatedTask);
+
+    // Update in database if task has an ID
+    if (taskId != null) {
+      try {
+        // Convert time to 24-hour format for database
+        final databaseTime = _convertTo24HourFormat(task.time);
+        
+        final taskMain = TaskMain(
+          id: taskId,
+          title: task.title,
+          category: task.category,
+          time: databaseTime, // Use 24-hour format for database
+          date: task.date,
+          userId: userProvider.userId,
+          completed: newCompletionStatus,
+        );
+
+        log('Updating task completion: display=${task.time}, database=$databaseTime');
+        await updateTaskInDatabase(taskMain);
+        log('Task completion status updated in database');
+      } catch (e) {
+        log('Failed to update task completion in database: $e');
+      }
+    }
+
+    // Close dialog and show notification using captured objects
+    navigator.pop();
+    
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          newCompletionStatus ? "Task Completed" : "Task Marked as Incomplete",
+        ),
+      ),
+    );
+
+  } catch (e) {
+    log('Error in task completion: $e');
+    // Still try to close dialog if possible
+    try {
+      navigator.pop();
+    } catch (_) {}
+    
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text("Failed to update task completion"),
+      ),
+    );
+  }
+  
+  // Rebuild the UI only if the widget is still mounted
+  if (mounted) {
+    setState(() {});
+  }
+},
+                                                        ),
+                                                        SizedBox(width: 12),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "Status",
+                                                              style: TextStyle(
+                                                                color: textColor
+                                                                    .withOpacity(
+                                                                      0.6,
+                                                                    ),
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              task.isChecked
+                                                                  ? "Completed"
+                                                                  : "Not completed",
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 16,
+                                                                color:
+                                                                    task.isChecked
+                                                                        ? Colors
+                                                                            .green
+                                                                        : textColor,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          actions: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                Expanded(
+                                                  child: TextButton.icon(
+                                                    icon: Icon(
+                                                      Icons.delete,
+                                                      color: Colors.white,
+                                                    ),
+                                                    label: Text(
+                                                      "Delete",
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    style: TextButton.styleFrom(
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            vertical: 12,
+                                                          ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    onPressed: () {
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop();
+                                                      // Handle delete - this actually needs to show your existing delete confirmation dialog
+                                                      if (task.isRecurring ==
+                                                              true &&
                                                           taskProvider
-                                                              .deleteRecurringTask(
+                                                              .isRecurringTaskOnMultipleDates(
                                                                 task,
-                                                              );
-                                                          NotificationService.showToast(
-                                                            context,
-                                                            "Recurring Tasks Deleted",
-                                                            "All instances of '${task.title}' have been deleted",
-                                                          );
-                                                        },
+                                                              )) {
+                                                        // Show delete options for recurring tasks
+                                                        showDialog(
+                                                          context: context,
+                                                          builder: (
+                                                            BuildContext
+                                                            confirmContext,
+                                                          ) {
+                                                            return AlertDialog(
+                                                              backgroundColor:
+                                                                  cardColor,
+                                                              title: Text(
+                                                                'Delete Recurring Task',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              content: Text(
+                                                                'Do you want to delete all instances of "${task.title}"?',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              actions: [
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'This Instance Only',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+
+                                                                    // Delete this instance only
+                                                                    taskProvider.deleteTask(
+                                                                      normalizedSelectedDay,
+                                                                      task,
+                                                                    );
+
+                                                                    NotificationService.showToast(
+                                                                      context,
+                                                                      "Task Deleted",
+                                                                      "This instance of '${task.title}' has been deleted",
+                                                                    );
+                                                                  },
+                                                                ),
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'All Instances',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+
+                                                                    // Delete all instances
+                                                                    taskProvider.deleteRecurringTask(
+                                                                      task,
+                                                                    );
+
+                                                                    NotificationService.showToast(
+                                                                      context,
+                                                                      "Recurring Tasks Deleted",
+                                                                      "All instances of '${task.title}' have been deleted",
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            );
+                                                          },
+                                                        );
+                                                      } else {
+                                                        // For non-recurring tasks
+                                                        showDialog(
+                                                          context: context,
+                                                          builder: (
+                                                            BuildContext
+                                                            confirmContext,
+                                                          ) {
+                                                            return AlertDialog(
+                                                              backgroundColor:
+                                                                  cardColor,
+                                                              title: Text(
+                                                                'Delete Task',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              content: Text(
+                                                                'Are you sure you want to delete "${task.title}"?',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              actions: [
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'Cancel',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+                                                                  },
+                                                                ),
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'Delete',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+                                                                    // Delete from database FIRST if task has ID
+                                                                    if (task.id !=
+                                                                        null) {
+                                                                      deleteTaskFromDatabase(
+                                                                            task.id!,
+                                                                          )
+                                                                          .then((
+                                                                            _,
+                                                                          ) {
+                                                                            log(
+                                                                              'Task deleted from database',
+                                                                            );
+                                                                          })
+                                                                          .catchError((
+                                                                            e,
+                                                                          ) {
+                                                                            log(
+                                                                              'Failed to delete task from database: $e',
+                                                                            );
+                                                                          });
+                                                                    }
+
+                                                                    // Delete from provider
+                                                                    taskProvider
+                                                                        .deleteTask(
+                                                                          normalizedSelectedDay,
+                                                                          task,
+                                                                        );
+
+                                                                    // Show notification using captured messenger
+                                                                    final scaffoldMessenger =
+                                                                        ScaffoldMessenger.of(
+                                                                          context,
+                                                                        );
+                                                                    scaffoldMessenger.showSnackBar(
+                                                                      SnackBar(
+                                                                        content:
+                                                                            Text(
+                                                                              "'${task.title}' has been deleted",
+                                                                            ),
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            );
+                                                          },
+                                                        );
+                                                      }
+                                                    },
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Expanded(
+                                                  child: TextButton.icon(
+                                                    icon: Icon(
+                                                      Icons.edit,
+                                                      color: Colors.white,
+                                                    ),
+                                                    label: Text(
+                                                      "Edit",
+                                                      style: TextStyle(
+                                                        color: Colors.white,
                                                       ),
-                                                    ],
-                                                  );
-                                                },
-                                              );
-                                            } else {
-                                              // Delete single task
-                                              taskProvider.deleteTask(
-                                                normalizedSelectedDay,
-                                                task,
-                                              );
-                                              NotificationService.showToast(
-                                                context,
-                                                "Task Deleted",
-                                                "'${task.title}' has been deleted",
-                                              );
-                                            }
-                                          },
+                                                    ),
+                                                    style: TextButton.styleFrom(
+                                                      backgroundColor:
+                                                          buttonColor,
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            vertical: 12,
+                                                          ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    onPressed: () {
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop();
+
+                                                      // Handle edit - use existing showEditTaskDialog or direct implementation
+                                                      if (task.isRecurring ==
+                                                              true &&
+                                                          taskProvider
+                                                              .isRecurringTaskOnMultipleDates(
+                                                                task,
+                                                              )) {
+                                                        showDialog(
+                                                          context: context,
+                                                          builder: (
+                                                            BuildContext
+                                                            confirmContext,
+                                                          ) {
+                                                            return AlertDialog(
+                                                              backgroundColor:
+                                                                  cardColor,
+                                                              title: Text(
+                                                                'Edit Recurring Task',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              content: Text(
+                                                                'Do you want to edit all instances of "${task.title}"?',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              ),
+                                                              actions: [
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'This Instance Only',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+
+                                                                    // Create a non-recurring copy for this instance
+                                                                    Task
+                                                                    nonRecurringCopy = Task(
+                                                                      title:
+                                                                          task.title,
+                                                                      category:
+                                                                          task.category,
+                                                                      time:
+                                                                          task.time,
+                                                                      date:
+                                                                          task.date,
+
+                                                                      color:
+                                                                          task.color,
+                                                                      icon:
+                                                                          task.icon,
+                                                                      isChecked:
+                                                                          task.isChecked,
+                                                                      isRecurring:
+                                                                          false, // Make it non-recurring
+                                                                    );
+
+                                                                    // Replace the recurring task with non-recurring one for this date
+                                                                    taskProvider.editTask(
+                                                                      normalizedSelectedDay,
+                                                                      task,
+                                                                      nonRecurringCopy,
+                                                                    );
+
+                                                                    // Show the edit dialog for this specific instance
+                                                                    showTaskDialog(
+                                                                      context:
+                                                                          context,
+                                                                      dialogTitle:
+                                                                          "Edit Task",
+                                                                      initialTitle:
+                                                                          nonRecurringCopy
+                                                                              .title,
+                                                                      initialCategory:
+                                                                          nonRecurringCopy
+                                                                              .category,
+                                                                      initialTime:
+                                                                          nonRecurringCopy
+                                                                              .time,
+                                                                      onSubmit: (
+                                                                        title,
+                                                                        category,
+                                                                        time,
+                                                                      ) async {
+                                                                        final formattedCategory =
+                                                                            category[0].toUpperCase() +
+                                                                            category.substring(1).toLowerCase();
+                                                                        final updatedTask = Task(
+                                                                          title:
+                                                                              title,
+                                                                          category:
+                                                                              formattedCategory,
+                                                                          time:
+                                                                              time,
+                                                                          date:
+                                                                              task.date,
+
+                                                                          color:
+                                                                              nonRecurringCopy.color,
+                                                                          icon:
+                                                                              categoryIcons[formattedCategory] ??
+                                                                              FontAwesomeIcons.listCheck,
+                                                                          isChecked:
+                                                                              nonRecurringCopy.isChecked,
+                                                                          isRecurring:
+                                                                              false, // Keep it as a single instance
+                                                                        );
+                                                                        taskProvider.editTask(
+                                                                          normalizedSelectedDay,
+                                                                          nonRecurringCopy,
+                                                                          updatedTask,
+                                                                        );
+
+                                                                        // Add the category if it's new
+                                                                        final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+                                                                        final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+                                                                        if (!categoryProvider.categoryExists(formattedCategory)) {
+                                                                          await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+                                                                        }
+
+                                                                        NotificationService.showToast(
+                                                                          context,
+                                                                          "Task Updated",
+                                                                          "'${task.title}' for ${formatDateWithOrdinal(normalizedSelectedDay)} has been updated",
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                  },
+                                                                ),
+                                                                TextButton(
+                                                                  child: Text(
+                                                                    'All Instances',
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    Navigator.of(
+                                                                      confirmContext,
+                                                                    ).pop();
+
+                                                                    // Show the edit dialog for all recurring instances
+                                                                    showTaskDialog(
+                                                                      context:
+                                                                          context,
+                                                                      dialogTitle:
+                                                                          "Edit All Recurring Tasks",
+                                                                      initialTitle:
+                                                                          task.title,
+                                                                      initialCategory:
+                                                                          task.category,
+                                                                      initialTime:
+                                                                          task.time,
+                                                                      onSubmit: (
+                                                                        title,
+                                                                        category,
+                                                                        time,
+                                                                      ) async {
+                                                                        final formattedCategory =
+                                                                            category[0].toUpperCase() +
+                                                                            category.substring(1).toLowerCase();
+                                                                        final updatedTask = Task(
+                                                                          title:
+                                                                              title,
+                                                                          category:
+                                                                              formattedCategory,
+                                                                          time:
+                                                                              time,
+                                                                          date:
+                                                                              task.date,
+
+                                                                          color:
+                                                                              task.color,
+                                                                          icon:
+                                                                              categoryIcons[formattedCategory] ??
+                                                                              FontAwesomeIcons.listCheck,
+                                                                          isChecked:
+                                                                              task.isChecked,
+                                                                          isRecurring:
+                                                                              true, // Keep it recurring
+                                                                        );
+
+                                                                        // Update all recurring instances
+                                                                        taskProvider.editRecurringTask(
+                                                                          task,
+                                                                          updatedTask,
+                                                                        );
+
+                                                                        // Add the category if needed
+                                                                        final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+                                                                        final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+                                                                        if (!categoryProvider.categoryExists(formattedCategory)) {
+                                                                          await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+                                                                        }
+
+                                                                        NotificationService.showToast(
+                                                                          context,
+                                                                          "All Tasks Updated",
+                                                                          "All instances of '${task.title}' have been updated",
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            );
+                                                          },
+                                                        );
+                                                      } else {
+                                                        // For non-recurring tasks, show the standard edit dialog
+                                                        showTaskDialog(
+                                                          context: context,
+                                                          dialogTitle:
+                                                              "Edit Task",
+                                                          initialTitle:
+                                                              task.title,
+                                                          initialCategory:
+                                                              task.category,
+                                                          initialTime:
+                                                              task.time,
+                                                          onSubmit: (
+                                                            title,
+                                                            category,
+                                                            time,
+                                                          ) async {
+                                                            final formattedCategory =
+                                                                category[0]
+                                                                    .toUpperCase() +
+                                                                category
+                                                                    .substring(
+                                                                      1,
+                                                                    )
+                                                                    .toLowerCase();
+                                                            final updatedTask = Task(
+                                                              title: title,
+                                                              category:
+                                                                  formattedCategory,
+                                                              time: time,
+                                                              date: task.date,
+
+                                                              color:
+                                                                  task.color, // Keep the same color
+                                                              icon:
+                                                                  categoryIcons[formattedCategory] ??
+                                                                  FontAwesomeIcons
+                                                                      .listCheck,
+                                                              isChecked:
+                                                                  task.isChecked,
+                                                              isRecurring:
+                                                                  task.isRecurring,
+                                                            );
+                                                            taskProvider.editTask(
+                                                              normalizedSelectedDay,
+                                                              task,
+                                                              updatedTask,
+                                                            );
+
+                                                            // Add the category if it's new
+                                                            final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+                                                            final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+                                                            if (!categoryProvider.categoryExists(formattedCategory)) {
+                                                              await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+                                                            }
+
+                                                            NotificationService.showToast(
+                                                              context,
+                                                              "Task Updated",
+                                                              "'${task.title}' has been updated",
+                                                            );
+                                                          },
+                                                        );
+                                                      }
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                  child: Card(
+                                    color: cardColor,
+                                    elevation: 1,
+                                    margin: EdgeInsets.symmetric(vertical: 4),
+                                    child: ListTile(
+                                      leading: Icon(
+                                        task.icon ?? FontAwesomeIcons.listCheck,
+                                        color: task.color,
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              task.title,
+                                              style: TextStyle(
+                                                color: textColor,
+                                                decoration:
+                                                    task.isChecked
+                                                        ? TextDecoration
+                                                            .lineThrough
+                                                        : null,
+                                              ),
+                                            ),
+                                          ),
+                                          if (task.isChecked)
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check,
+                                                    color: Colors.white,
+                                                    size: 12,
+                                                  ),
+                                                  SizedBox(width: 2),
+                                                  Text(
+                                                    "Done",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        "${task.category} - ${task.time}",
+                                        style: TextStyle(
+                                          color: textColor.withOpacity(0.7),
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 );
+
+                                // return GestureDetector(
+                                //   onTap:() {
+
+                                //   },
+                                //   child: Card(
+                                //     color: cardColor,
+                                //     elevation: 1,
+                                //     margin: EdgeInsets.symmetric(vertical: 4),
+                                //     child: ListTile(
+                                //       leading: Icon(
+                                //         task.icon ?? FontAwesomeIcons.listCheck,
+                                //         color: task.color,
+                                //       ),
+                                //       title: Row(
+                                //         children: [
+                                //           Expanded(
+                                //             child: Text(
+                                //               task.title,
+                                //               style: TextStyle(
+                                //                 color: textColor,
+                                //                 decoration: task.isChecked ? TextDecoration.lineThrough : null,
+                                //               ),
+                                //             ),
+                                //           ),
+                                //           if (task.isChecked)
+                                //             Container(
+                                //               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                //               decoration: BoxDecoration(
+                                //                 color: Colors.green,
+                                //                 borderRadius: BorderRadius.circular(12),
+                                //               ),
+                                //               child: Row(
+                                //                 mainAxisSize: MainAxisSize.min,
+                                //                 children: [
+                                //                   Icon(Icons.check, color: Colors.white, size: 12),
+                                //                   SizedBox(width: 2),
+                                //                   Text(
+                                //                     "Done",
+                                //                     style: TextStyle(
+                                //                       color: Colors.white,
+                                //                       fontSize: 10,
+                                //                       fontWeight: FontWeight.bold,
+                                //                     ),
+                                //                   ),
+                                //                 ],
+                                //               ),
+                                //             ),
+                                //         ],
+                                //       ),
+                                //       subtitle: Text(
+                                //         "${task.category} - ${task.time}",
+                                //         style: TextStyle(
+                                //           color: textColor.withOpacity(0.7),
+                                //         ),
+                                //       ),
+                                //       trailing: Row(
+                                //         mainAxisSize: MainAxisSize.min,
+                                //         children: [
+                                //           // Remove the checkbox and only keep edit/delete buttons
+                                //           IconButton(
+                                //             icon: Icon(
+                                //               Icons.edit,
+                                //               color: isDarkMode ? Colors.lightBlue : Colors.blue,
+                                //             ),
+                                //             onPressed: () {
+                                //               // Keep your existing edit logic
+                                //             },
+                                //           ),
+                                //           IconButton(
+                                //             icon: Icon(
+                                //               Icons.delete,
+                                //               color: Colors.red,
+                                //             ),
+                                //             onPressed: () {
+                                //               // Keep your existing delete logic
+                                //             },
+                                //           ),
+                                //         ],
+                                //       ),
+                                //     ),
+                                //   ),
+                                // );
+                                // return Card(
+                                //   color: cardColor,
+                                //   elevation: 1,
+                                //   margin: EdgeInsets.symmetric(vertical: 4),
+                                //   child: ListTile(
+                                //     leading: Icon(
+                                //       task.icon ?? FontAwesomeIcons.listCheck,
+                                //       color: task.color,
+                                //     ),
+                                //     title: Text(
+                                //       task.title,
+                                //       style: TextStyle(color: textColor),
+                                //     ),
+                                //     subtitle: Text(
+                                //       "${task.category} - ${task.time}",
+                                //       style: TextStyle(
+                                //         color: textColor.withOpacity(0.7),
+                                //       ),
+                                //     ),
+                                //     trailing: Row(
+                                //       mainAxisSize: MainAxisSize.min,
+                                //       children: [
+                                //         IconButton(
+                                //           icon: Icon(
+                                //             Icons.edit,
+                                //             color:
+                                //                 isDarkMode
+                                //                     ? Colors.lightBlue
+                                //                     : Colors.blue,
+                                //           ),
+                                //           onPressed: () {
+                                //             if (task.isRecurring &&
+                                //                 taskProvider
+                                //                     .isRecurringTaskOnMultipleDates(
+                                //                       task,
+                                //                     )) {
+                                //               showDialog(
+                                //                 context: context,
+                                //                 builder: (context) {
+                                //                   return AlertDialog(
+                                //                     title: Text(
+                                //                       'Edit Recurring Task',
+                                //                     ),
+                                //                     content: Text(
+                                //                       'This is a recurring task. Do you want to edit all instances?',
+                                //                     ),
+                                //                     actions: [
+                                //                       TextButton(
+                                //                         child: Text(
+                                //                           'This Instance Only',
+                                //                         ),
+                                //                         onPressed: () {
+                                //                           Navigator.pop(
+                                //                             context,
+                                //                           );
+                                //                           // Edit just this instance logic
+                                //                           // Same as above
+                                //                         },
+                                //                       ),
+                                //                       TextButton(
+                                //                         child: Text(
+                                //                           'All Instances',
+                                //                         ),
+                                //                         onPressed: () {
+                                //                           Navigator.pop(
+                                //                             context,
+                                //                           );
+                                //                           // Edit all instances logic
+                                //                           // Same as above
+                                //                         },
+                                //                       ),
+                                //                     ],
+                                //                   );
+                                //                 },
+                                //               );
+                                //             } else {
+                                //               // Edit single task
+                                //               // Same as above
+                                //             }
+                                //           },
+                                //         ),
+                                //         IconButton(
+                                //           icon: Icon(
+                                //             Icons.delete,
+                                //             color: Colors.red,
+                                //           ),
+                                //           onPressed: () {
+                                //             if (task.isRecurring &&
+                                //                 taskProvider
+                                //                     .isRecurringTaskOnMultipleDates(
+                                //                       task,
+                                //                     )) {
+                                //               showDialog(
+                                //                 context: context,
+                                //                 builder: (context) {
+                                //                   return AlertDialog(
+                                //                     title: Text(
+                                //                       'Delete Recurring Task',
+                                //                     ),
+                                //                     content: Text(
+                                //                       'This is a recurring task. Do you want to delete all instances?',
+                                //                     ),
+                                //                     actions: [
+                                //                       TextButton(
+                                //                         child: Text(
+                                //                           'This Instance Only',
+                                //                         ),
+                                //                         onPressed: () {
+                                //                           Navigator.pop(
+                                //                             context,
+                                //                           );
+                                //                           taskProvider.deleteTask(
+                                //                             normalizedSelectedDay,
+                                //                             task,
+                                //                           );
+                                //                           NotificationService.showToast(
+                                //                             context,
+                                //                             "Task Deleted",
+                                //                             "This instance of '${task.title}' has been deleted",
+                                //                           );
+                                //                         },
+                                //                       ),
+                                //                       TextButton(
+                                //                         child: Text(
+                                //                           'All Instances',
+                                //                         ),
+                                //                         onPressed: () {
+                                //                           Navigator.pop(
+                                //                             context,
+                                //                           );
+                                //                           taskProvider
+                                //                               .deleteRecurringTask(
+                                //                                 task,
+                                //                               );
+                                //                           NotificationService.showToast(
+                                //                             context,
+                                //                             "Recurring Tasks Deleted",
+                                //                             "All instances of '${task.title}' have been deleted",
+                                //                           );
+                                //                         },
+                                //                       ),
+                                //                     ],
+                                //                   );
+                                //                 },
+                                //               );
+                                //             } else {
+                                //               // Delete single task
+                                //               // Same as above
+                                //             }
+                                //           },
+                                //         ),
+                                //       ],
+                                //     ),
+                                //   ),
+                                // );
                               },
                             );
                       })(),
@@ -994,104 +2322,141 @@ class _CalendarState extends State<Calendar> {
         backgroundColor: buttonColor,
         child: Icon(Icons.add, color: Colors.white),
 
-        onPressed: () {
-          if (_selectedDay != null) {
-            final taskProvider = Provider.of<TaskProvider>(
-              context,
-              listen: false,
-            );
-            final normalizedSelectedDay = _normalizeDate(_selectedDay!);
+// Replace the FloatingActionButton onPressed method:
+onPressed: () async {
+  if (_selectedDay != null) {
+    // Capture ALL context-dependent objects IMMEDIATELY
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final normalizedSelectedDay = _normalizeDate(_selectedDay!);
+    final hasTasks = taskProvider.tasks[normalizedSelectedDay]?.isNotEmpty ?? false;
 
-            // Check if selected day is today
-            final bool isToday = DateTime(
-              normalizedSelectedDay.year,
-              normalizedSelectedDay.month,
-              normalizedSelectedDay.day,
-            ).isAtSameMomentAs(
-              DateTime(
-                DateTime.now().year,
-                DateTime.now().month,
-                DateTime.now().day,
+    // Check if selected day is today
+    final bool isToday = DateTime(
+      normalizedSelectedDay.year,
+      normalizedSelectedDay.month,
+      normalizedSelectedDay.day,
+    ).isAtSameMomentAs(
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+    );
+
+    showTaskDialog(
+      context: context,
+      dialogTitle: hasTasks
+          ? "Add Another Task for ${formatDateWithOrdinal(normalizedSelectedDay)}"
+          : "Add Task for ${formatDateWithOrdinal(normalizedSelectedDay)}",
+      onSubmit: (title, category, time) async {
+        // Time validation for today
+        if (isToday) {
+          final now = DateTime.now();
+          final timeFormat = DateFormat("hh:mm a");
+          try {
+            final taskTime = timeFormat.parse(time);
+            final taskDateTime = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              taskTime.hour,
+              taskTime.minute,
+            );
+
+            if (taskDateTime.isBefore(now)) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "Cannot schedule tasks for times that have already passed",
+                  ),
+                ),
+              );
+              return;
+            }
+          } catch (e) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text("Please enter a valid time format"),
               ),
             );
-
-            showTaskDialog(
-              context: context,
-              dialogTitle:
-                  "Add Task for ${formatDateWithOrdinal(_selectedDay!)}",
-              onSubmit: (title, category, time) {
-                // Time validation for today
-                if (isToday) {
-                  // Parse the time string (assuming format like "10:00 AM")
-                  final now = DateTime.now();
-                  final timeFormat = DateFormat("hh:mm a");
-                  try {
-                    final taskTime = timeFormat.parse(time);
-
-                    // Create a DateTime with today's date and the task time
-                    final taskDateTime = DateTime(
-                      now.year,
-                      now.month,
-                      now.day,
-                      taskTime.hour,
-                      taskTime.minute,
-                    );
-
-                    // Compare with current time
-                    if (taskDateTime.isBefore(now)) {
-                      NotificationService.showToast(
-                        context,
-                        "Invalid Time",
-                        "Cannot schedule tasks for times that have already passed",
-                      );
-                      return; // Don't add the task
-                    }
-                  } catch (e) {
-                    // Handle invalid time format
-                    NotificationService.showToast(
-                      context,
-                      "Invalid Format",
-                      "Please enter a valid time format",
-                    );
-                    return;
-                  }
-                }
-
-                // Original task adding logic
-                final formattedCategory =
-                    category[0].toUpperCase() +
-                    category.substring(1).toLowerCase();
-                final task = Task(
-                  title: title,
-                  category: formattedCategory,
-                  time: time,
-                  color: Task.getRandomColor(),
-                  icon:
-                      categoryIcons[formattedCategory] ??
-                      FontAwesomeIcons.listCheck,
-                  isChecked: false,
-                );
-                taskProvider.addTask(
-                  normalizedSelectedDay,
-                  task,
-                ); // Use the captured provider
-
-                if (!Categories.categories.contains(formattedCategory)) {
-                  Categories.categories.add(formattedCategory);
-                }
-
-                // Show notification for task added
-                final formattedDate = formatDateWithOrdinal(_selectedDay!);
-                NotificationService.showToast(
-                  context,
-                  "Task Added",
-                  "'$title' has been scheduled for $formattedDate",
-                );
-              },
-            );
+            return;
           }
-        },
-      ),
+        }
+
+        final formattedCategory = category[0].toUpperCase() + category.substring(1).toLowerCase();
+
+        // Create local task WITHOUT ID first (store display time)
+        final localTask = Task(
+          title: title,
+          category: formattedCategory,
+          time: time, // Keep 12-hour format for display
+          date: normalizedSelectedDay.toIso8601String(),
+          color: Task.getRandomColor(),
+          icon: categoryIcons[formattedCategory] ?? FontAwesomeIcons.listCheck,
+          isChecked: false,
+        );
+
+        // Add to TaskProvider immediately
+        taskProvider.addTask(normalizedSelectedDay, localTask);
+
+        // Save to database in background with 24-hour format
+        try {
+          final dateOnlyString = '${normalizedSelectedDay.year}-${normalizedSelectedDay.month.toString().padLeft(2, '0')}-${normalizedSelectedDay.day.toString().padLeft(2, '0')}';
+
+          // Convert to 24-hour format for database storage
+          final databaseTime = _convertTo24HourFormat(time);
+
+          final taskMain = TaskMain(
+            title: title,
+            category: formattedCategory,
+            time: databaseTime, // Store 24-hour format in database
+            date: dateOnlyString,
+            userId: userProvider.userId,
+            completed: false,
+          );
+
+          log('Saving calendar task with time: display=$time, database=$databaseTime');
+
+          final response = await saveTaskToDatabase(taskMain);
+          if (response != null && response['data'] != null) {
+            final taskId = response['data']['id'];
+
+            // Update the task with database ID (keep display format)
+            final updatedTask = Task(
+              id: taskId,
+              title: localTask.title,
+              category: localTask.category,
+              time: time, // Keep 12-hour format for display
+              date: localTask.date,
+              color: localTask.color,
+              icon: localTask.icon,
+              isChecked: localTask.isChecked,
+            );
+
+            // Replace in provider
+            taskProvider.editTask(normalizedSelectedDay, localTask, updatedTask);
+            log('Calendar task saved with ID: $taskId');
+          }
+        } catch (e) {
+          log('Failed to save calendar task: $e');
+        }
+
+        // Add category if new
+        final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+
+        if (!categoryProvider.categoryExists(formattedCategory)) {
+          await categoryProvider.addAndSaveCategory(formattedCategory, userProvider.userId);
+        }
+
+        // Show success message using captured messenger
+        final formattedDate = formatDateWithOrdinal(normalizedSelectedDay);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("'$title' has been scheduled for $formattedDate"),
+          ),
+        );
+      },
+    );
+  }
+}, ),
     );
   }
 }

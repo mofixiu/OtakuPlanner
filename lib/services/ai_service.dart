@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field, unused_import
+
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
@@ -51,7 +53,6 @@ class AIService {
           "Avoid social media or email during breaks as they can easily extend your break time.";
     }
     
-    // Anime related
     if (lowerPrompt.contains('anime') || lowerPrompt.contains('watch') || lowerPrompt.contains('episode')) {
       return "To organize your anime watchlist effectively:\n\n"
           "1. Categorize shows by genre and length\n"
@@ -79,7 +80,6 @@ class AIService {
           "Just ask me what you need help with!";
     }
     
-    // Default response for anything else
-    return "I understand you're asking about \"${userPrompt}\". While I'm a simple assistant with limited capabilities, I can help with basic task organization, study planning, and anime tracking. For more specific features, try using the dedicated tools in the OtakuPlanner app.";
+    return "I understand you're asking about \"$userPrompt\". While I'm a simple assistant with limited capabilities, I can help with basic task organization, study planning, and anime tracking. For more specific features, try using the dedicated tools in the OtakuPlanner app.";
   }
 }
