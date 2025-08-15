@@ -82,9 +82,9 @@ class _SplashScreenState extends State<SplashScreen> {
       final isAuthenticated = hasToken && hasValidUserData;
       
       // If authenticated, load tasks before navigating to dashboard
-      if (isAuthenticated && userProvider.userId != null) {
+      if (isAuthenticated) {
         log('Loading tasks for authenticated user...');
-        await _loadUserTasks(userProvider.userId!);
+        await _loadUserTasks(userProvider.userId);
       }
       
       return isAuthenticated;
