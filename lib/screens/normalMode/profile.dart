@@ -34,10 +34,10 @@ class _ProfileState extends State<Profile> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       
       // Option 1: Get just completed tasks count
-      final completedCount = await getCompletedTasksCount(userProvider.userId!);
+      final completedCount = await getCompletedTasksCount(userProvider.userId);
       
       // Option 2: Get full user profile with statistics
-      final profileData = await getUserProfile(userProvider.userId!);
+      final profileData = await getUserProfile(userProvider.userId);
       
       setState(() {
         _completedTasksCount = completedCount;
