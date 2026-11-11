@@ -307,6 +307,20 @@ Future<dynamic> post(
     }
   }
 
+  /// POST for slow endpoints such as the assistant, which waits on Gemini.
+  Future<dynamic> postWithTimeout(
+    String url,
+    dynamic data,
+    Duration receiveTimeout,
+  ) async {
+    final response = await _dio.post(
+      url,
+      data: data,
+      options: Options(receiveTimeout: receiveTimeout),
+    );
+    return response.data;
+  }
+
   void _handleDioError(DioException error) {
     String errorMessage;
     switch (error.type) {
@@ -380,6 +394,14 @@ Future<dynamic> post(
   dynamic headers,
 ]) async {
   return await _requestService.post(url, data, queryParameters, headers);
+}
+
+Future<dynamic> postWithTimeout(
+  String url,
+  dynamic data,
+  Duration receiveTimeout,
+) async {
+  return await _requestService.postWithTimeout(url, data, receiveTimeout);
 }
 
 Future<dynamic> put(
