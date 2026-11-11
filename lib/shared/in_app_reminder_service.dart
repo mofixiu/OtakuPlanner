@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/shared/notifications.dart';
-import 'package:intl/intl.dart';
+import 'package:otakuplanner/shared/formats.dart';
 
 class InAppReminderService {
   static Timer? _timer;
@@ -43,7 +43,6 @@ class InAppReminderService {
     
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final DateFormat timeFormat = DateFormat("hh:mm a");
     
     // Get today's tasks
     final todaysTasks = _taskProvider!.tasks[today] ?? [];
@@ -52,8 +51,9 @@ class InAppReminderService {
       if (task.isChecked) continue; // Skip completed tasks
       
       try {
-        // Parse the time string
-        final parsedTime = timeFormat.parse(task.time);
+        // Task times come as "4:20 PM" or "16:20"; read either.
+        final parsedTime = PlannerFormat.parseTime(task.time);
+        if (parsedTime == null) continue;
         
         // Combine with today's date
         final taskDateTime = DateTime(
@@ -107,11 +107,8 @@ class InAppReminderService {
     required String message,
     required Task task,
   }) {
-    // Use the existing NotificationService to show the toast
+    // Shows the toast and adds it to the notifications list.
     NotificationService.showToast(_context, title, message);
-    
-    // Also add to the notification dropdown
-    NotificationService.addGlobalNotification(_context, title, message);
   }
   
   // Clean up old notification tracking to prevent memory leaks

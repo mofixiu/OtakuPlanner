@@ -33,14 +33,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.0.3"
-  another_flutter_splash_screen:
-    dependency: "direct main"
-    description:
-      name: another_flutter_splash_screen
-      sha256: feb42edf8c67bc991eabb67b4aeb6832dd7f829f3d72102a5f8b6af3ae6c5933
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.1"
   archive:
     dependency: transitive
     description:
@@ -405,14 +397,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  font_awesome_flutter:
-    dependency: "direct main"
-    description:
-      name: font_awesome_flutter
-      sha256: d3a89184101baec7f4600d58840a764d2ef760fe1c5a20ef9e6b0e9b24a07a3a
-      url: "https://pub.dev"
-    source: hosted
-    version: "10.8.0"
   frontend_server_client:
     dependency: transitive
     description:
@@ -454,7 +438,7 @@ packages:
     source: hosted
     version: "1.1.0"
   http:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: http
       sha256: "2c11f3f94c687ee9bad77c171151672986360b2b001d109814ee7140b2cf261b"
@@ -922,14 +906,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.1"
-  splash_view:
-    dependency: "direct main"
-    description:
-      name: splash_view
-      sha256: fd556452e8e51842a2797d0da6862fc5fb6d665ffe57be7213744a5d1e83dda8
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.1"
   stack_trace:
     dependency: transitive
     description:
@@ -938,14 +914,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
-  step_progress_indicator:
-    dependency: "direct main"
-    description:
-      name: step_progress_indicator
-      sha256: b51bb1fcfc78454359f0658c5a2c21548c3825ebf76e826308e9ca10f383bbb8
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.2"
   stream_channel:
     dependency: transitive
     description:

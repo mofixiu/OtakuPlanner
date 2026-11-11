@@ -1,21 +1,21 @@
-// ignore_for_file: unused_local_variable, prefer_final_fields
-
 import 'dart:developer' show log;
 
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:otakuplanner/models/task.dart';
 import 'package:otakuplanner/models/taskMain.dart';
 import 'package:otakuplanner/providers/category_provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/screens/normalMode/calendar.dart' show categoryIcons;
 import 'package:otakuplanner/screens/request.dart' show saveTaskToDatabase;
 import 'package:otakuplanner/services/assistant_service.dart';
-import 'package:otakuplanner/themes/theme.dart';
+import 'package:otakuplanner/shared/category_icons.dart';
+import 'package:otakuplanner/shared/planner_stats.dart';
+import 'package:otakuplanner/widgets/ink_kit.dart';
 import 'package:provider/provider.dart';
 
+/// The planning assistant. Replies come from the backend's /assistant/chat
+/// (Gemini on the server); suggested tasks only reach the planner when the
+/// user taps Add.
 class OtakuPlannerAIPage extends StatefulWidget {
   const OtakuPlannerAIPage({super.key});
 
@@ -24,16 +24,23 @@ class OtakuPlannerAIPage extends StatefulWidget {
 }
 
 class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
-  TextEditingController _textController = TextEditingController();
+  final TextEditingController _textController = TextEditingController();
+  final FocusNode _inputFocus = FocusNode();
   bool _hasText = false;
-  List<Map<String, dynamic>> _chatMessages = [];
-  ScrollController _scrollController = ScrollController();
+  final List<Map<String, dynamic>> _chatMessages = [];
+  final ScrollController _scrollController = ScrollController();
   final AssistantService _assistant = AssistantService();
   bool _waiting = false;
 
   // Suggested tasks being saved, and ones already added, keyed by suggestion.
   final Set<String> _saving = {};
   final Set<String> _added = {};
+
+  static const _prompts = [
+    'Plan the rest of my day',
+    'Fit two episodes in this week',
+    'Spread my study over the next three days',
+  ];
 
   @override
   void initState() {
@@ -45,22 +52,22 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
   void dispose() {
     _textController.removeListener(_updateHasText);
     _textController.dispose();
+    _inputFocus.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _updateHasText() {
     setState(() {
-      _hasText = _textController.text.isNotEmpty;
+      _hasText = _textController.text.trim().isNotEmpty;
     });
   }
 
+  /// Puts a prompt in the box so it can be sent as is or changed first.
   void _selectPrompt(String prompt) {
-    setState(() {
-      _textController.text = prompt;
-      _hasText = true; // Make sure this gets updated immediately
-    });
-    // Option to auto-focus the text field after selecting a prompt
-    FocusScope.of(context).requestFocus(FocusNode());
+    _textController.text = prompt;
+    _textController.selection = TextSelection.collapsed(offset: prompt.length);
+    _inputFocus.requestFocus();
   }
 
   /// The conversation so far, without placeholders or error notes, for the
@@ -172,7 +179,7 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
           time: suggestion.displayTime,
           date: suggestion.day.toIso8601String(),
           color: Task.getRandomColor(),
-          icon: categoryIcons[suggestion.category] ?? FontAwesomeIcons.listCheck,
+          icon: categoryIconFor(suggestion.category),
         ),
       );
       if (!categoryProvider.categoryExists(suggestion.category)) {
@@ -197,274 +204,190 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
     }
   }
 
-  // Helper method for scrolling
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  Widget _buildWelcomeView(BuildContext context, String username, Color textColor, Color buttonColor) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.05), // Reduced top spacing
-          Container(
-            width: 55,
-            height: 55,
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 11, 60, 100),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: FaIcon(
-                FontAwesomeIcons.bolt,
-                size: 30,
-                color: Colors.white,
+  /// "2 tasks left today, next at 5:00 PM." from the user's own planner.
+  String _daySummary(PlannerStats stats) {
+    final today = stats.todayTasks;
+    final left = today.where((t) => !t.isChecked).length;
+    final next = stats.nextToday;
+    if (today.isEmpty) {
+      final tomorrow = stats.tasksOn(stats.today.add(const Duration(days: 1))).length;
+      return tomorrow == 0
+          ? 'Nothing planned today or tomorrow.'
+          : 'Nothing planned today. Tomorrow has $tomorrow ${tomorrow == 1 ? 'task' : 'tasks'}.';
+    }
+    if (left == 0) {
+      return 'All ${today.length} of today\'s tasks are done.';
+    }
+    final count = '$left ${left == 1 ? 'task' : 'tasks'} left today';
+    return next == null ? '$count.' : '$count, next at ${PlannerFormat.time(next.time)}.';
+  }
+
+  Widget _buildWelcomeView(BuildContext context, String name) {
+    final stats = PlannerStats(Provider.of<TaskProvider>(context).tasks);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Space.page, Space.l, Space.page, Space.l),
+      children: [
+        Kicker(PlannerFormat.kickerDay(stats.today), stamped: true),
+        const SizedBox(height: Space.gutter),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _MascotAvatar(size: 44),
+            const SizedBox(width: Space.s),
+            Expanded(
+              child: SpeechBalloon(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Hi.' : 'Hi $name.',
+                      style: context.type.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(_daySummary(stats), style: context.type.bodyMedium),
+                    const SizedBox(height: Space.xs),
+                    Text(
+                      "Tell me what you want to fit in and I'll suggest times. Nothing is added until you tap Add.",
+                      style: context.type.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            username.isEmpty
-                ? 'Hello!'
-                : 'Hello, ${username[0].toUpperCase()}${username.substring(1).toLowerCase()}!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-              color: buttonColor,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'How can OtakuPlanner assistant help you today?',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: textColor,
-            ),
-          ),
-          SizedBox(height: 24),
-          
-          // Text field moved here - before the prompts
-          Container(
-            width: MediaQuery.of(context).size.width - 20,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.0),
-            ),
-            child: TextField(
-              obscureText: false,
-              controller: _textController,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
-              decoration: InputDecoration(
-                hintText: "Ask me anything",
-                suffixIcon: GestureDetector(
-                  onTap: _hasText && !_waiting ? _sendMessage : null,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 15, right: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _hasText && !_waiting
-                            ? Color.fromARGB(255, 11, 60, 100)
-                            : Colors.grey.shade300,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(7.0),
-                        child: Icon(
-                          Icons.send_sharp,
-                          color: _hasText
-                              ? Colors.white
-                              : Colors.grey.shade600,
-                          size: 20,
-                        ),
+          ],
+        ),
+        const SizedBox(height: Space.l),
+        const Kicker('Try asking'),
+        const SizedBox(height: Space.s),
+        Panel(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < _prompts.length; i++) ...[
+                if (i > 0) const InkRule(),
+                Semantics(
+                  button: true,
+                  child: InkWell(
+                    onTap: () => _selectPrompt(_prompts[i]),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Space.gutter, vertical: 14),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(_prompts[i], style: context.type.titleMedium)),
+                          Icon(Icons.north_west, size: 16, color: context.ink.inkMuted),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                suffixIconConstraints: BoxConstraints(
-                  minHeight: 25,
-                  minWidth: 50,
-                ),
-                filled: false,
-                fillColor: Colors.white12,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                  borderSide: BorderSide(
-                    color: Color.fromRGBO(252, 242, 232, 1),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                  borderSide: BorderSide(
-                    color: Color.fromRGBO(252, 242, 232, 1),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                  borderSide: BorderSide(
-                    color: Color(0xFF1E293B),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: 20),
-          
-          // Prompt suggestions
-          Text(
-            'Or try one of these prompts',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: textColor,
-            ),
-          ),
-          SizedBox(height: 16),
-          
-          // Prompt containers in a wrap
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 12.0,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildPromptContainer(
-                icon: Icons.calendar_month_outlined,
-                label: 'Plan study session',
-                onTap: () => _selectPrompt('Plan a study session for my upcoming exams'),
-              ),
-              _buildPromptContainer(
-                icon: Icons.task_alt_outlined,
-                label: 'Identify top tasks',
-                onTap: () => _selectPrompt('Help me identify my top priority tasks for today'),
-              ),
-              _buildPromptContainer(
-                icon: Icons.coffee_outlined, 
-                label: 'Suggest a break',
-                onTap: () => _selectPrompt('Suggest activities for a productive 15-minute break'),
-              ),
-              _buildPromptContainer(
-                icon: Icons.summarize_outlined,
-                label: 'Summarize weekly tasks',
-                onTap: () => _selectPrompt('Summarize all my tasks for this week'),
-              ),
-              _buildPromptContainer(
-                icon: Icons.emoji_emotions_outlined,
-                label: 'Motivate me',
-                onTap: () => _selectPrompt('Give me some motivation to finish my tasks'),
-              ),
-              _buildPromptContainer(
-                icon: Icons.format_list_bulleted,
-                label: 'Organize watchlist',
-                onTap: () => _selectPrompt('Help me organize my anime watchlist by priority'),
-              ),
+              ],
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildChatMessage(Map<String, dynamic> message) {
+    final c = context.ink;
     final isUser = message['isUser'] as bool;
     final isTyping = message['isTyping'] ?? false;
     final isError = message['isError'] ?? false;
     final suggestions = (message['suggestions'] as List<SuggestedTask>?) ?? const [];
+    final maxWidth = MediaQuery.of(context).size.width * 0.78;
 
-    final bubble = Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.7,
-      ),
-      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      decoration: BoxDecoration(
-        color: isUser
-            ? Color.fromARGB(255, 11, 60, 100)
-            : isError
-                ? Colors.red.shade50
-                : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-        border: isError ? Border.all(color: Colors.red.shade200) : null,
-      ),
-      child: isTyping
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Thinking",
-                  style: TextStyle(color: Colors.black54),
-                ),
-                SizedBox(width: 8),
-                SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color.fromARGB(255, 11, 60, 100),
-                  ),
-                ),
-              ],
-            )
-          : SelectableText(
-              message['text'],
-              style: TextStyle(
-                color: isUser
-                    ? Colors.white
-                    : isError
-                        ? Colors.red.shade900
-                        : Colors.black87,
-                fontSize: 16,
+    if (isUser) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.s),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: SpeechBalloon(
+              tail: BalloonTail.right,
+              filled: true,
+              child: SelectableText(
+                message['text'],
+                style: context.type.bodyMedium?.copyWith(color: c.paper),
               ),
             ),
-    );
+          ),
+        ),
+      );
+    }
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+    final Widget body;
+    if (isTyping) {
+      body = Semantics(
+        liveRegion: true,
+        label: 'The assistant is writing',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: c.ink)),
+            const SizedBox(width: Space.s),
+            Text('Writing…', style: context.type.bodyMedium?.copyWith(color: c.inkMuted)),
+          ],
+        ),
+      );
+    } else if (isError) {
+      body = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isUser)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: isError ? Colors.red.shade300 : Color.fromARGB(255, 11, 60, 100),
-                child: FaIcon(
-                  isError ? FontAwesomeIcons.triangleExclamation : FontAwesomeIcons.bolt,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
-            ),
-
-          Column(
-            crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              bubble,
-              for (final suggestion in suggestions) _buildSuggestionCard(suggestion),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.error_outline, size: 18, color: c.ink),
           ),
+          const SizedBox(width: Space.s),
+          Flexible(
+            child: SelectableText(
+              message['text'],
+              style: context.type.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      );
+    } else {
+      body = SelectableText(message['text'], style: context.type.bodyMedium);
+    }
 
-          if (isUser)
-            Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.blue,
-                child: Icon(Icons.person, color: Colors.white, size: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.s),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _MascotAvatar(size: 32),
+          const SizedBox(width: Space.xs),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SpeechBalloon(child: body),
+                  for (final suggestion in suggestions) ...[
+                    const SizedBox(height: Space.s),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: _buildSuggestionCard(suggestion),
+                    ),
+                  ],
+                ],
               ),
             ),
+          ),
         ],
       ),
     );
@@ -473,40 +396,27 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
   /// A task the assistant proposed, with an Add button. Nothing reaches the
   /// planner until the user taps it.
   Widget _buildSuggestionCard(SuggestedTask suggestion) {
+    final c = context.ink;
     final key = _suggestionKey(suggestion);
     final saving = _saving.contains(key);
     final added = _added.contains(key);
-    final when = '${DateFormat('EEE d MMM').format(suggestion.day)} · ${suggestion.displayTime}';
+    final when = PlannerFormat.dayTime(suggestion.day, suggestion.displayTime);
 
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.7,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+    return Panel(
+      padding: const EdgeInsets.fromLTRB(Space.gutter, 10, Space.s, 10),
       child: Row(
         children: [
-          FaIcon(
-            categoryIcons[suggestion.category] ?? FontAwesomeIcons.listCheck,
-            size: 16,
-            color: Color.fromARGB(255, 11, 60, 100),
-          ),
+          ToneSwatch(category: suggestion.category, size: 14),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  suggestion.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
-                ),
+                Text(suggestion.title, style: context.type.titleSmall),
                 const SizedBox(height: 2),
                 Text(
                   '$when · ${suggestion.category}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  style: context.type.bodySmall?.copyWith(fontFeatures: TypeScale.tabular),
                 ),
               ],
             ),
@@ -514,57 +424,73 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
           const SizedBox(width: 6),
           if (added)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: Space.s),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, size: 18, color: Colors.green.shade600),
+                  Icon(Icons.check, size: 16, color: c.ink),
                   const SizedBox(width: 4),
-                  Text('Added', style: TextStyle(fontSize: 13, color: Colors.green.shade700)),
+                  Text('Added', style: context.type.labelMedium),
                 ],
               ),
             )
           else
-            TextButton(
-              onPressed: saving ? null : () => _addSuggestedTask(suggestion),
-              style: TextButton.styleFrom(
-                foregroundColor: Color.fromARGB(255, 11, 60, 100),
-                minimumSize: const Size(56, 36),
-              ),
-              child: saving
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Add', style: TextStyle(fontWeight: FontWeight.w600)),
+            InkButton.secondary(
+              label: 'Add',
+              small: true,
+              loading: saving,
+              onPressed: () => _addSuggestedTask(suggestion),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildPromptContainer({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13.0),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
+  Widget _buildInputBar() {
+    final c = context.ink;
+    final canSend = _hasText && !_waiting;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.paper,
+        border: Border(top: BorderSide(color: c.ink, width: Strokes.panel)),
+      ),
+      padding: const EdgeInsets.fromLTRB(Space.page, Space.s + 2, Space.page, Space.s + 2),
+      child: SafeArea(
+        top: false,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Icon(icon, size: 20, color: Colors.grey.shade600),
-            SizedBox(width: 8.0),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Colors.grey.shade800,
+            Expanded(
+              child: TextField(
+                controller: _textController,
+                focusNode: _inputFocus,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendMessage(),
+                decoration: const InputDecoration(hintText: 'Ask about your plans'),
+              ),
+            ),
+            const SizedBox(width: Space.s),
+            Semantics(
+              button: true,
+              enabled: canSend,
+              label: 'Send',
+              child: Material(
+                color: canSend ? c.ink : Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: Radii.controlAll,
+                  side: BorderSide(color: canSend ? c.ink : c.rule, width: Strokes.panel),
+                ),
+                child: InkWell(
+                  onTap: canSend ? _sendMessage : null,
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Icon(Icons.arrow_upward, color: canSend ? c.paper : c.inkMuted),
+                  ),
+                ),
               ),
             ),
           ],
@@ -576,157 +502,61 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
   @override
   Widget build(BuildContext context) {
     final username = Provider.of<UserProvider>(context).username;
+    final name = username.isEmpty
+        ? ''
+        : '${username[0].toUpperCase()}${username.substring(1).toLowerCase()}';
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).primaryColor;
-    final cardColor = OtakuPlannerTheme.getCardColor(context);
-    final textColor = OtakuPlannerTheme.getTextColor(context);
-    final borderColor = OtakuPlannerTheme.getBorderColor(context);
-    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-          elevation: 1,
-          titleSpacing: 0,
-          title: Row(
-            children: [
+        appBar: InkBackBar(
+          title: 'Assistant',
+          actions: [
+            if (_chatMessages.isNotEmpty)
               TextButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(Icons.arrow_back, size: 20, color: textColor),
-                label: Text(
-                  'Dashboard',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.normal,
-                    color: textColor,
-                  ),
-                ),
+                onPressed: _waiting ? null : _startNewChat,
+                icon: const Icon(Icons.edit_note, size: 20),
+                label: const Text('New chat'),
               ),
-
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Assistant',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-
-              IconButton(
-                tooltip: 'New chat',
-                icon: Icon(Icons.add_circle_outline_rounded, color: textColor),
-                onPressed: _chatMessages.isEmpty || _waiting ? null : _startNewChat,
-              ),
-              IconButton(
-                icon: Icon(Icons.history, color: textColor),
-                onPressed: () {},
-              ),
-            ],
-          ),
+          ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            children: [
-              // Chat messages area
-              Expanded(
-                child: _chatMessages.isEmpty 
-                    ? _buildWelcomeView(context, username, textColor, buttonColor)
-                    : ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _chatMessages.length,
-                        itemBuilder: (context, index) {
-                          final message = _chatMessages[index];
-                          return _buildChatMessage(message);
-                        },
-                      ),
-              ),
-              
-              // Text field only shown when in chat mode
-              if (_chatMessages.isNotEmpty) 
-                Container(
-                  width: MediaQuery.of(context).size.width - 20,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15.0),
-                  ),
-                  child: TextField(
-                    obscureText: false,
-                    controller: _textController,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    decoration: InputDecoration(
-                      hintText: "Ask me anything",
-                      suffixIcon: GestureDetector(
-                        onTap: _hasText && !_waiting ? _sendMessage : null,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 15, right: 10),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color:
-                                  _hasText && !_waiting
-                                      ? Color.fromARGB(255, 11, 60, 100)
-                                      : Colors.grey.shade300,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(7.0),
-                              child: Icon(
-                                Icons.send_sharp,
-                                color:
-                                    _hasText
-                                        ? Colors.white
-                                        : Colors.grey.shade600,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      suffixIconConstraints: BoxConstraints(
-                        minHeight: 25,
-                        minWidth: 50,
-                      ),
-
-                      filled: false,
-                      fillColor: Colors.white12,
-
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15.0),
-                        borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15.0),
-                        borderSide: BorderSide(
-                          color: Color.fromRGBO(252, 242, 232, 1),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15.0),
-                        borderSide: BorderSide(
-                          color: Color(0xFF1E293B),
-                          width: 1.5,
-                        ),
-                      ),
+        body: Column(
+          children: [
+            Expanded(
+              child: _chatMessages.isEmpty
+                  ? _buildWelcomeView(context, name)
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(Space.page, Space.s, Space.page, Space.m),
+                      itemCount: _chatMessages.length,
+                      itemBuilder: (context, index) => _buildChatMessage(_chatMessages[index]),
                     ),
-                  ),
-                ),
-            ],
-          ),
+            ),
+            _buildInputBar(),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// The mascot's face in an ink square, speaking for the assistant.
+class _MascotAvatar extends StatelessWidget {
+  const _MascotAvatar({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.08),
+      decoration: BoxDecoration(
+        border: Border.all(color: context.ink.ink, width: Strokes.panel),
+        borderRadius: Radii.controlAll,
+      ),
+      child: MascotLine(height: size),
     );
   }
 }

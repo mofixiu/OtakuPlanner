@@ -1,232 +1,108 @@
-import 'dart:developer' as developer;
-import 'dart:convert';
-import 'dart:math';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-
+/// A line from an anime for the dashboard, one per day.
+///
+/// The lines live in the app, so the dashboard never waits on a quote API
+/// and every day's line is the same wherever it's opened.
 class Quote {
+  const Quote({required this.text, required this.character, required this.series});
+
   final String text;
-  final String author;
+  final String character;
+  final String series;
 
-  Quote({required this.text, required this.author});
-
-  factory Quote.fromJson(Map<String, dynamic> json) {
-    return Quote(
-      text: json['content'] ?? json['q'] ?? 'Make today count!',
-      author: json['author'] ?? json['a'] ?? 'Unknown',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'text': text,
-      'author': author,
-    };
-  }
+  /// "Kyojuro Rengoku, Demon Slayer"
+  String get attribution => '$character, $series';
 }
 
 class QuoteService {
-  // Primary API
-  static const String _quotableApi = 'https://api.quotable.io';
-  // Backup API
-  static const String _zenQuotesApi = 'https://zenquotes.io/api';
+  QuoteService._();
 
-  // Cache for quotes - static to persist across rebuilds
-  static Quote? _cachedQuote;
-  static bool _isRefreshing = false;
-  static String? _cachedDate; // Store the date when the quote was cached
+  /// Kept so app start-up doesn't change; nothing needs loading any more.
+  static void initializeQuotes() {}
 
-  // Initialize quotes as early as possible
-  static void initializeQuotes() async {
-    await _loadFromPrefs();
-    if (_shouldRefreshQuote()) {
-      fetchQuoteInBackground();
-    }
+  /// Today's line. The same all day, a different one tomorrow.
+  static Quote getQuote({DateTime? now}) {
+    final d = now ?? DateTime.now();
+    final dayNumber = DateTime.utc(d.year, d.month, d.day).millisecondsSinceEpoch ~/ 86400000;
+    return quotes[dayNumber % quotes.length];
   }
 
-  // Check if we need a new quote
-  static bool _shouldRefreshQuote() {
-    final today = _getDateString();
-    return _cachedDate == null || _cachedDate != today;
-  }
-
-  // Get today's date as a string in yyyy-MM-dd format
-  static String _getDateString() {
-    final now = DateTime.now();
-    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-  }
-
-  // Save quote to SharedPreferences
-  static Future<void> _saveToPrefs() async {
-    if (_cachedQuote == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final quoteData = jsonEncode(_cachedQuote!.toJson());
-    await prefs.setString('daily_quote', quoteData);
-    await prefs.setString('quote_date', _cachedDate ?? _getDateString());
-  }
-
-  // Load quote from SharedPreferences
-  static Future<void> _loadFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final quoteData = prefs.getString('daily_quote');
-    final quoteDate = prefs.getString('quote_date');
-
-    if (quoteData != null && quoteDate != null) {
-      try {
-        final jsonData = jsonDecode(quoteData);
-        _cachedQuote = Quote(text: jsonData['text'], author: jsonData['author']);
-        _cachedDate = quoteDate;
-      } catch (e) {
-        developer.log('Error loading cached quote: $e');
-      }
-    }
-  }
-
-  // Fetch a quote in the background and cache it
-  static Future<void> fetchQuoteInBackground() async {
-    if (_isRefreshing) return;
-
-    _isRefreshing = true;
-    try {
-      // Only fetch a new quote if we don't have one for today
-      if (_shouldRefreshQuote()) {
-        final quote = await _fetchFromApis();
-        _cachedQuote = quote;
-        _cachedDate = _getDateString();
-        await _saveToPrefs(); // Save the new quote
-      }
-    } catch (e) {
-      // If all fails, get a fallback quote
-      if (_cachedQuote == null) {
-        _cachedQuote = _getRandomFallbackQuote();
-        _cachedDate = _getDateString();
-        await _saveToPrefs();
-      }
-    } finally {
-      _isRefreshing = false;
-    }
-  }
-
-  // Get a quote - immediate return from cache or fallback
-  static Quote getQuote() {
-    // Check if we need to refresh the quote
-    if (_shouldRefreshQuote() && !_isRefreshing) {
-      fetchQuoteInBackground();
-    }
-
-    // If we have a cached quote, return it
-    if (_cachedQuote != null) {
-      return _cachedQuote!;
-    }
-
-    // If no cached quote yet, return a fallback and start fetching
-    final fallback = _getRandomFallbackQuote();
-    if (!_isRefreshing) {
-      fetchQuoteInBackground();
-    }
-    return fallback;
-  }
-
-  // Try both APIs and return a quote
-  static Future<Quote> _fetchFromApis() async {
-    // Try primary API (Quotable)
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final response = await http.get(
-        Uri.parse('$_quotableApi/random?tags=inspirational,motivational&t=$timestamp'),
-        headers: {'Cache-Control': 'no-cache'},
-      ).timeout(const Duration(seconds: 3));
-
-      if (response.statusCode == 200) {
-        return Quote.fromJson(json.decode(response.body));
-      }
-    } catch (e) {
-      developer.log('First API failed: $e');
-    }
-
-    // Try backup API
-    try {
-      final response = await http.get(
-        Uri.parse('$_zenQuotesApi/random'),
-        headers: {'Cache-Control': 'no-cache'},
-      ).timeout(const Duration(seconds: 1));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        if (data.isNotEmpty) {
-          return Quote.fromJson(data[0]);
-        }
-      }
-    } catch (e) {
-      developer.log('Second API failed: $e');
-    }
-
-    // If both APIs fail, fallback to local quotes
-    return _getRandomFallbackQuote();
-  }
-
-  // Get a random fallback quote
-  static Quote _getRandomFallbackQuote() {
-    // Use the current date as a seed for the random number generator
-    // This ensures the same quote is shown all day even when using fallbacks
-    final now = DateTime.now();
-    final seed = now.year * 10000 + now.month * 100 + now.day;
-    final random = Random(seed);
-    return _fallbackQuotes[random.nextInt(_fallbackQuotes.length)];
-  }
-
-  // Keep your existing fallback quotes list
-  static final List<Quote> _fallbackQuotes = [
-    Quote(text: "Every accomplishment starts with the decision to try.", author: "Unknown"),
-    Quote(text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson"),
-    Quote(text: "The secret of getting ahead is getting started.", author: "Mark Twain"),
-    Quote(text: "The best way to predict the future is to create it.", author: "Peter Drucker"),
-    Quote(text: "Don't count the days, make the days count.", author: "Muhammad Ali"),
-    Quote(text: "Quality is not an act, it is a habit.", author: "Aristotle"),
-    Quote(text: "Your time is limited, don't waste it living someone else's life.", author: "Steve Jobs"),
-    Quote(text: "Success is not final, failure is not fatal: It is the courage to continue that counts.", author: "Winston Churchill"),
-    Quote(text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt"),
-    Quote(text: "The only way to do great work is to love what you do.", author: "Steve Jobs"),
-    Quote(text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt"),
-    Quote(text: "It always seems impossible until it's done.", author: "Nelson Mandela"),
-    Quote(text: "You are never too old to set another goal or to dream a new dream.", author: "C.S. Lewis"),
-    Quote(text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt"),
-    Quote(text: "Strive not to be a success, but rather to be of value.", author: "Albert Einstein"),
-    Quote(text: "The question isn't who is going to let me; it's who is going to stop me.", author: "Ayn Rand"),
-    Quote(text: "If you can dream it, you can do it.", author: "Walt Disney"),
-    Quote(text: "Nothing is impossible, the word itself says 'I'm possible'!", author: "Audrey Hepburn"),
-    Quote(text: "Don't let yesterday take up too much of today.", author: "Will Rogers"),
-    Quote(text: "Life is 10% what happens to us and 90% how we react to it.", author: "Charles R. Swindoll"),
-    Quote(text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky"),
-    Quote(text: "The mind is everything. What you think you become.", author: "Buddha"),
-    Quote(text: "The most difficult thing is the decision to act, the rest is merely tenacity.", author: "Amelia Earhart"),
-    Quote(text: "Twenty years from now you will be more disappointed by the things you didn't do than by the ones you did.", author: "Mark Twain"),
-    Quote(text: "The greatest glory in living lies not in never falling, but in rising every time we fall.", author: "Nelson Mandela"),
-    Quote(text: "Life is either a daring adventure or nothing at all.", author: "Helen Keller"),
-    Quote(text: "The only impossible journey is the one you never begin.", author: "Tony Robbins"),
-    Quote(text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein"),
-    Quote(text: "If you want to lift yourself up, lift up someone else.", author: "Booker T. Washington"),
-    Quote(text: "The purpose of our lives is to be happy.", author: "Dalai Lama"),
-    Quote(text: "Happiness is not something ready-made. It comes from your own actions.", author: "Dalai Lama"),
-    Quote(text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison"),
-    Quote(text: "We become what we think about.", author: "Earl Nightingale"),
-    Quote(text: "What you lack in talent can be made up with desire, hustle, and giving 110% all the time.", author: "Don Zimmer"),
-    Quote(text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt"),
-    Quote(text: "Be yourself; everyone else is already taken.", author: "Oscar Wilde"),
-    Quote(text: "Turn your wounds into wisdom.", author: "Oprah Winfrey"),
-    Quote(text: "When one door of happiness closes, another opens.", author: "Helen Keller"),
-    Quote(text: "You must be the change you wish to see in the world.", author: "Mahatma Gandhi"),
-    Quote(text: "Tough times never last, but tough people do.", author: "Robert H. Schuller"),
-    Quote(text: "You only live once, but if you do it right, once is enough.", author: "Mae West"),
-    Quote(text: "The power of imagination makes us infinite.", author: "John Muir"),
-    Quote(text: "If opportunity doesn't knock, build a door.", author: "Milton Berle"),
-    Quote(text: "What you get by achieving your goals is not as important as what you become by achieving your goals.", author: "Zig Ziglar"),
-    Quote(text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney"),
-    Quote(text: "Success is not the key to happiness. Happiness is the key to success.", author: "Albert Schweitzer"),
-    Quote(text: "The harder I work, the luckier I get.", author: "Gary Player"),
-    Quote(text: "Action is the foundational key to all success.", author: "Pablo Picasso"),
-    Quote(text: "Dream big and dare to fail.", author: "Norman Vaughan"),
-    Quote(text: "Small steps in the right direction can turn out to be the biggest step of your life.", author: "Unknown"),
+  static const List<Quote> quotes = [
+    Quote(text: 'Set your heart ablaze.', character: 'Kyojuro Rengoku', series: 'Demon Slayer'),
+    Quote(
+      text: "If you don't take risks, you can't create a future.",
+      character: 'Monkey D. Luffy',
+      series: 'One Piece',
+    ),
+    Quote(
+      text: 'A lesson without pain is meaningless.',
+      character: 'Edward Elric',
+      series: 'Fullmetal Alchemist: Brotherhood',
+    ),
+    Quote(
+      text: 'A dropout will beat a genius through hard work.',
+      character: 'Rock Lee',
+      series: 'Naruto',
+    ),
+    Quote(
+      text: "When you give up, that's when the game ends.",
+      character: 'Mitsuyoshi Anzai',
+      series: 'Slam Dunk',
+    ),
+    Quote(
+      text: 'You should enjoy the little detours to the fullest.',
+      character: 'Ging Freecss',
+      series: 'Hunter x Hunter',
+    ),
+    Quote(
+      text: "I'll leave tomorrow's problems to tomorrow's me.",
+      character: 'Saitama',
+      series: 'One-Punch Man',
+    ),
+    Quote(
+      text: 'No matter how deep the night, it always turns to day, eventually.',
+      character: 'Brook',
+      series: 'One Piece',
+    ),
+    Quote(
+      text: 'Fear is not evil. It tells you what your weakness is.',
+      character: 'Gildarts Clive',
+      series: 'Fairy Tail',
+    ),
+    Quote(
+      text: 'Being weak is nothing to be ashamed of. Staying weak is.',
+      character: 'Fuegoleon Vermillion',
+      series: 'Black Clover',
+    ),
+    Quote(
+      text: 'Power comes in response to a need, not a desire.',
+      character: 'Goku',
+      series: 'Dragon Ball Z',
+    ),
+    Quote(text: 'Go beyond! Plus Ultra!', character: 'All Might', series: 'My Hero Academia'),
+    Quote(
+      text: 'Hard work is worthless for those that don\'t believe in themselves.',
+      character: 'Naruto Uzumaki',
+      series: 'Naruto',
+    ),
+    Quote(
+      text: "Whatever you lose, you'll find it again. But what you throw away you'll never get back.",
+      character: 'Kenshin Himura',
+      series: 'Rurouni Kenshin',
+    ),
+    Quote(
+      text: 'Simplicity is the easiest path to true beauty.',
+      character: 'Seishu Handa',
+      series: 'Barakamon',
+    ),
+    Quote(
+      text: 'If you win, you live. If you lose, you die. If you don\'t fight, you can\'t win!',
+      character: 'Eren Yeager',
+      series: 'Attack on Titan',
+    ),
+    Quote(
+      text: "Life is not a game of luck. If you wanna win, work hard.",
+      character: 'Sora',
+      series: 'No Game No Life',
+    ),
   ];
 }

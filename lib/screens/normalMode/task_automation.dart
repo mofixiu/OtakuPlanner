@@ -1,20 +1,22 @@
-import 'package:otakuplanner/services/task_text_parser.dart';
 import 'dart:developer' show log;
 
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
-import 'package:otakuplanner/models/taskMain.dart';
+import 'package:otakuplanner/providers/category_provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/request.dart';
+import 'package:otakuplanner/services/task_text_parser.dart';
+import 'package:otakuplanner/shared/category_icons.dart';
 import 'package:otakuplanner/shared/notifications.dart';
-import 'package:otakuplanner/themes/theme.dart';
+import 'package:otakuplanner/shared/task_actions.dart';
+import 'package:otakuplanner/widgets/ink_kit.dart';
 import 'package:provider/provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:otakuplanner/providers/category_provider.dart';
 
+/// Type a task in plain English ("Watch Solo Leveling every Friday at 7 PM")
+/// and see what was understood as you type, then add it to the calendar.
 class TaskAutomation extends StatefulWidget {
-  const TaskAutomation({Key? key}) : super(key: key);
+  const TaskAutomation({super.key});
 
   @override
   State<TaskAutomation> createState() => _TaskAutomationState();
@@ -22,574 +24,235 @@ class TaskAutomation extends StatefulWidget {
 
 class _TaskAutomationState extends State<TaskAutomation> {
   final TextEditingController _taskController = TextEditingController();
-  String _parsingResult = '';
-  Map<String, dynamic> _extractedData = {};
-  bool _isProcessing = false;
-  String _selectedCategory = 'General';
+  ParsedTask? _parsed;
+  String? _category;
+  bool _saving = false;
+
+  static const _examples = [
+    'Watch Solo Leveling every Friday at 7 PM',
+    'Study Japanese every Monday at 3 PM',
+    'Send the essay by 5pm tomorrow',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _taskController.addListener(_read);
+  }
 
   @override
   void dispose() {
+    _taskController.removeListener(_read);
     _taskController.dispose();
     super.dispose();
   }
 
-  // Reads the typed task and shows what was understood.
-  void _processTaskText() {
-    setState(() {
-      _isProcessing = true;
-      _parsingResult = '';
-      _extractedData = {};
-    });
-
+  void _read() {
     final text = _taskController.text.trim();
-    if (text.isEmpty) {
-      setState(() {
-        _parsingResult = 'Please enter a task description';
-        _isProcessing = false;
-      });
-      return;
-    }
-
-    final result = _parseTaskText(text);
-    if (result['time'] == null || result['time'].isEmpty) {
-      setState(() {
-        _isProcessing = false;
-        _parsingResult =
-            'Missing time information. Please include a time in your task description (e.g., 3 PM, 7:30 AM, 17:30)';
-        _extractedData = {};
-      });
-      return;
-    }
-
+    final parsed = text.isEmpty ? null : parseTaskText(text);
     setState(() {
-      _extractedData = result;
-      _selectedCategory = result['category'];
-      _parsingResult = _formatParsingResult(result);
-      _isProcessing = false;
+      // A category the user picked by hand stays picked while they edit.
+      if (parsed == null || _parsed == null || _category == _parsed!.category) {
+        _category = parsed?.category;
+      }
+      _parsed = parsed;
     });
   }
 
-  // Reads the day, time, repeat and category out of the typed task.
-  Map<String, dynamic> _parseTaskText(String text) => parseTaskText(text).toMap();
-
-  String _formatParsingResult(Map<String, dynamic> data) {
-  // Add null checks before using isEmpty
-  if ((data['title'] == null || data['title'].isEmpty) && 
-      (data['day'] == null || data['day'].isEmpty) && 
-      (data['time'] == null || data['time'].isEmpty)) {
-    return 'Could not understand the task. Please try again with a clearer description.';
-  }
-
-  final List<String> parts = [];
-
-  if (data['title'] != null && data['title'].isNotEmpty) {
-    parts.add('Task: ${data['title']}');
-  }
-
-  if (data['day'] != null && data['day'].isNotEmpty) {
-    parts.add('Day: ${data['day']}');
-  }
-
-  if (data['time'] != null && data['time'].isNotEmpty) {
-    parts.add('Time: ${data['time']}');
-  }
-
-  parts.add('Category: ${data['category'] ?? 'General'}');
-  parts.add('Recurring: ${data['isRecurring'] == true ? 'Yes' : 'No'}');
-
-  return parts.join('\n');
-}
-
-// Format the parsing result without category for display
-String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
-  // Add null checks before using isEmpty
-  if ((data['title'] == null || data['title'].isEmpty) && 
-      (data['day'] == null || data['day'].isEmpty) && 
-      (data['time'] == null || data['time'].isEmpty)) {
-    return 'Could not understand the task. Please try again with a clearer description.';
-  }
-
-  final List<String> parts = [];
-
-  if (data['title'] != null && data['title'].isNotEmpty) {
-    parts.add('Task: ${data['title']}');
-  }
-
-  if (data['day'] != null && data['day'].isNotEmpty) {
-    parts.add('Day: ${data['day']}');
-  }
-
-  if (data['time'] != null && data['time'].isNotEmpty) {
-    parts.add('Time: ${data['time']}');
-  }
-
-  // Include recurring information but exclude category
-  parts.add('Recurring: ${data['isRecurring'] == true ? 'Yes' : 'No'}');
-
-  return parts.join('\n');
-}
-
-  // Create the task and add it to calendar
-  void _createAutomatedTask() {
-    if (_extractedData.isEmpty || _extractedData['title'].isEmpty) {
-      NotificationService.showToast(
-        context,
-        "Processing Error",
-        "Please process a valid task description first",
-      );
-      return;
+  /// The dates the task lands on: one, or the next 50 for a repeat.
+  List<DateTime> _taskDates(ParsedTask p) {
+    final today = PlannerFormat.dateOnly(DateTime.now());
+    if (p.date != null && !p.isRecurring) return [p.date!];
+    final count = p.isRecurring ? 50 : 1;
+    if (p.recurrence == Recurrence.daily) {
+      return [for (var i = 0; i < count; i++) DateTime(today.year, today.month, today.day + i)];
     }
-    
-    if (_extractedData['time'] == null || _extractedData['time'].isEmpty) {
-      return;
+    if (p.weekday == null) return [today];
+    var day = today;
+    while (day.weekday != p.weekday) {
+      day = DateTime(day.year, day.month, day.day + 1);
     }
-    
-    final String taskTitle = _extractedData['title'];
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    // Calculate task dates - for recurring tasks, use more future dates
-    final List<DateTime> taskDates = _getTaskDates();
-    final bool isRecurring = _extractedData['isRecurring'] ?? false;
-
-    // Create tasks for each date
-    for (final date in taskDates) {
-      final task = Task(
-        date: date.toIso8601String(),
-        title: taskTitle,
-        category: _selectedCategory,
-        time: _extractedData['time'] ?? '12:00 PM',
-        color: Task.getRandomColor(),
-        icon: categoryIcons[_selectedCategory] ?? FontAwesomeIcons.listCheck,
-        isChecked: false,
-        isRecurring: isRecurring,
-      );
-
-      taskProvider.addTask(date, task);
-    }
-
-    // Save to database based on task type
-    _saveTaskToDatabase(
-      taskTitle,
-      _selectedCategory,
-      _extractedData['time'],
-      taskDates.first,
-      isRecurring,
-      userProvider.userId,
-    );
-
-    NotificationService.showToast(
-      context,
-      "Task Automated",
-      isRecurring
-          ? "'$taskTitle' has been added as a recurring task"
-          : "'$taskTitle' has been added to your calendar",
-    );
-
-    Navigator.pop(context, true);
+    return [for (var i = 0; i < count; i++) DateTime(day.year, day.month, day.day + 7 * i)];
   }
 
-  // Replace the _saveTaskToDatabase method in task_automation.dart:
-  Future<void> _saveTaskToDatabase(
-    String title,
-    String category,
-    String time,
-    DateTime date,
-    bool isRecurring,
-    int userId,
-  ) async {
-    try {
-      // Convert time to 24-hour format for database
-      final databaseTime = _convertTo24HourFormat(time);
-      final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-      if (isRecurring) {
-        // Save recurring task to recurring_tasks table
-        log('Saving recurring task to recurring_tasks table');
-        
-        final recurringTaskData = {
-          'user_id': userId,
-          'title': title,
-          'category': category,
-          'time': databaseTime,
-          'date': dateString,
-          'completed': false,
-          'frequency': _extractedData['frequency'] ?? 'weekly',
-        };
-
-        final response = await saveRecurringTaskToDatabase(recurringTaskData);
-        
-        if (response != null) {
-          log('Recurring task saved successfully: $response');
-        }
-      } else {
-        // Save to regular tasks table
-        final taskMain = TaskMain(
-          title: title,
-          category: category,
-          time: databaseTime,
-          date: dateString,
-          userId: userId,
-          completed: false,
-        );
-
-        log('Saving regular task to database: ${taskMain.toJson()}');
-        final response = await saveTaskToDatabase(taskMain);
-        
-        if (response != null) {
-          log('Regular task saved successfully: $response');
-        }
-      }
-    } catch (e) {
-      log('Error saving task to database: $e');
-    }
-  }
-
-  // Helper method to convert 12-hour to 24-hour format
-  String _convertTo24HourFormat(String time12Hour) {
-    try {
-      String time = time12Hour.toLowerCase().trim();
-      bool isPM = time.contains('pm');
-      bool isAM = time.contains('am');
-      
-      // Remove AM/PM
-      time = time.replaceAll('pm', '').replaceAll('am', '').trim();
-      
-      // Split by colon
-      List<String> parts = time.split(':');
-      if (parts.length < 2) return time12Hour;
-      
-      int hour = int.parse(parts[0]);
-      String minute = parts[1];
-      
-      // Convert to 24-hour format
-      if (isPM && hour != 12) {
-        hour += 12;
-      } else if (isAM && hour == 12) {
-        hour = 0;
-      }
-      
-      return '${hour.toString().padLeft(2, '0')}:$minute';
-    } catch (e) {
-      log('Error converting time format: $e');
-      return time12Hour;
-    }
-  }
-
-  // Update the _getTaskDates method for better recurring dates
-  List<DateTime> _getTaskDates() {
-    List<DateTime> dates = [];
-    final dayOfWeek = _getDayNumber(_extractedData['day']);
-
-    // If no specific day or not recurring, just add today or tomorrow
-    if (dayOfWeek == -1 && !_extractedData['isRecurring']) {
-      dates.add(DateTime.now());
-      return dates;
-    }
-
-    DateTime currentDate = DateTime.now();
-
-    // For recurring tasks, add more occurrences
-    int occurrencesToAdd = _extractedData['isRecurring'] ? 50 : 1;
-    int count = 0;
-
-    if (dayOfWeek != -1) {
-      // Recurring on specific day of week
-      while (count < occurrencesToAdd) {
-        // Find the next occurrence of this day
-        while (currentDate.weekday != dayOfWeek) {
-          currentDate = currentDate.add(Duration(days: 1));
-        }
-
-        dates.add(
-          DateTime(currentDate.year, currentDate.month, currentDate.day),
-        );
-        count++;
-
-        // Move to the next day
-        currentDate = currentDate.add(Duration(days: 1));
-      }
-    } else {
-      // Recurring every day
-      for (int i = 0; i < occurrencesToAdd; i++) {
-        dates.add(
-          DateTime(currentDate.year, currentDate.month, currentDate.day + i),
-        );
-      }
-    }
-
-    return dates;
-  }
-
-  // Convert day name to weekday number
-  int _getDayNumber(String day) {
-    final Map<String, int> dayMapping = {
-      'Monday': DateTime.monday,
-      'Tuesday': DateTime.tuesday,
-      'Wednesday': DateTime.wednesday,
-      'Thursday': DateTime.thursday,
-      'Friday': DateTime.friday,
-      'Saturday': DateTime.saturday,
-      'Sunday': DateTime.sunday,
+  String _dayLabel(ParsedTask p) {
+    final first = _taskDates(p).first;
+    return switch (p.recurrence) {
+      Recurrence.daily => 'Every day from ${PlannerFormat.day(first)}',
+      Recurrence.weekly => 'Every ${p.dayName} from ${PlannerFormat.day(first)}',
+      Recurrence.none => PlannerFormat.relativeDay(first) == null
+          ? PlannerFormat.day(first)
+          : '${PlannerFormat.relativeDay(first)}, ${PlannerFormat.day(first)}',
     };
+  }
 
-    return dayMapping[day] ?? -1;
+  Future<void> _create() async {
+    final p = _parsed;
+    final category = _category;
+    if (p == null || !p.hasTime || category == null || _saving) return;
+    setState(() => _saving = true);
+
+    final dates = _taskDates(p);
+    if (!p.isRecurring) {
+      await TaskActions.add(context, day: dates.first, title: p.title, category: category, time: p.time12);
+      if (mounted) Navigator.pop(context, true);
+      return;
+    }
+
+    // A repeat shows on each date in the planner and is saved once as a
+    // recurring task.
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final userId = Provider.of<UserProvider>(context, listen: false).userId;
+    for (final date in dates) {
+      taskProvider.addTask(
+        date,
+        Task(
+          date: date.toIso8601String(),
+          title: p.title,
+          category: category,
+          time: p.time12,
+          color: Task.getRandomColor(),
+          icon: categoryIconFor(category),
+          isRecurring: true,
+        ),
+      );
+    }
+    try {
+      await saveRecurringTaskToDatabase({
+        'user_id': userId,
+        'title': p.title,
+        'category': category,
+        'time': PlannerFormat.to24(p.time12),
+        'date': TaskActions.dateKey(dates.first),
+        'completed': false,
+        'frequency': p.recurrence == Recurrence.daily ? 'daily' : 'weekly',
+      });
+    } catch (e) {
+      log('Error saving recurring task: $e');
+    }
+    if (!mounted) return;
+    NotificationService.showToast(context, 'Task automated', "'${p.title}' now repeats on your calendar");
+    Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode
-            ? OtakuPlannerTheme.darkBackground
-            : OtakuPlannerTheme.lightBackground;
-    final cardColor = OtakuPlannerTheme.getCardColor(context);
-    final textColor = OtakuPlannerTheme.getTextColor(context);
-    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    final c = context.ink;
+    final p = _parsed;
+    final known = Provider.of<CategoryProvider>(context).categoriesForDropdown;
+    final options = [...known, if (_category != null && !known.contains(_category)) _category!];
 
-    // Update the category dropdown to use CategoryProvider:
-    final categoryProvider = Provider.of<CategoryProvider>(context);
-    final categories = categoryProvider.categoriesForDropdown;
-
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text('Task Automation', style: TextStyle(color: textColor)),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        iconTheme: IconThemeData(color: textColor),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Automate Tasks with Natural Language',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Describe your recurring task in plain English:',
-                style: TextStyle(fontSize: 16, color: textColor),
-              ),
-              SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
-                ),
-                padding: EdgeInsets.all(16),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: const InkBackBar(title: 'Automate a task'),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(Space.page, Space.l, Space.page, Space.l),
+          children: [
+            Text('Type it the way you’d say it', style: context.type.headlineSmall),
+            const SizedBox(height: Space.xs),
+            Text(
+              'Say what, when and how often. Repeats go on your calendar for the next 50 times.',
+              style: context.type.bodyMedium?.copyWith(color: c.inkMuted),
+            ),
+            const SizedBox(height: Space.m),
+            TextField(
+              controller: _taskController,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(hintText: 'Watch Solo Leveling every Friday at 7 PM'),
+            ),
+            if (p == null) ...[
+              const SizedBox(height: Space.l),
+              const Kicker('Try one'),
+              const SizedBox(height: Space.s),
+              Panel(
+                padding: EdgeInsets.zero,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Examples:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
+                    for (var i = 0; i < _examples.length; i++) ...[
+                      if (i > 0) const InkRule(),
+                      InkWell(
+                        onTap: () => _taskController.text = _examples[i],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: Space.gutter, vertical: 14),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(_examples[i], style: context.type.bodyMedium)),
+                              Icon(Icons.north_west, size: 16, color: c.inkMuted),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '• Watch Solo Leveling every Friday at 7:00 PM',
-                      style: TextStyle(color: textColor),
-                    ),
-                    Text(
-                      '• Study Japanese every Monday at 3 PM',
-                      style: TextStyle(color: textColor),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              SizedBox(height: 20),
-              TextField(
-                controller: _taskController,
-                decoration: InputDecoration(
-                  hintText: 'Enter your task description...',
-                  fillColor: Colors.white,
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+            ] else ...[
+              const SizedBox(height: Space.l),
+              const Kicker('What it read'),
+              const SizedBox(height: Space.s),
+              FieldGrid(
+                fields: [
+                  FieldGrid.text(context, 'Task', p.title, wide: true),
+                  FieldGrid.text(context, 'Day', _dayLabel(p)),
+                  FieldGrid.text(context, 'Time', p.hasTime ? p.time12 : ''),
+                  FieldGrid.text(
+                    context,
+                    'Repeats',
+                    switch (p.recurrence) {
+                      Recurrence.none => 'No',
+                      Recurrence.daily => 'Daily',
+                      Recurrence.weekly => 'Weekly',
+                    },
                   ),
-                ),
-                maxLines: 3,
-              ),
-              SizedBox(height: 16),
-              Center(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
-                  onPressed: _isProcessing ? null : _processTaskText,
-                  child:
-                      _isProcessing
-                          ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : Text('Process Task'),
-                ),
-              ),
-              SizedBox(height: 24),
-              if (_parsingResult.isNotEmpty && _extractedData.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [OtakuPlannerTheme.getBoxShadow(context)],
-                  ),
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Results:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        // Show parsing result without category (we'll show it separately)
-                        _formatParsingResultWithoutCategory(_extractedData),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: textColor,
-                          height: 1.5,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-
-                      // Add category selection
-                      Text(
-                        'Category:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: textColor,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedCategory,
-                          decoration: InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            border: InputBorder.none,
-                          ),
-                          icon: Icon(Icons.arrow_drop_down, color: buttonColor),
-                          style: TextStyle(fontSize: 16, color: Colors.black87),
-                          dropdownColor: Colors.white,
-                          items: categories.map((String category) {
-                            return DropdownMenuItem<String>(
-                              value: category,
+                  FieldCell(
+                    'Category',
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _category,
+                        isExpanded: true,
+                        isDense: true,
+                        dropdownColor: c.paper,
+                        style: context.type.titleMedium,
+                        items: [
+                          for (final cat in options)
+                            DropdownMenuItem(
+                              value: cat,
                               child: Row(
                                 children: [
-                                  Icon(
-                                    categoryIcons[category],
-                                    size: 16,
-                                    color: buttonColor,
-                                  ),
-                                  SizedBox(width: 14),
-                                  Text(category),
+                                  ToneSwatch(category: cat, size: 12),
+                                  const SizedBox(width: 6),
+                                  Flexible(child: Text(cat, overflow: TextOverflow.ellipsis)),
                                 ],
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedCategory = newValue;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      if (_extractedData.isNotEmpty &&
-                          _extractedData['title'].isNotEmpty)
-                        Center(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: buttonColor,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
                             ),
-                            onPressed: _createAutomatedTask,
-                            child: Text('Create Tasks on Calendar'),
-                          ),
-                        ),
-                    ],
-                  ),
-                )
-              else if (_parsingResult.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _parsingResult,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.red.shade700,
-                          ),
-                        ),
+                        ],
+                        onChanged: (v) => setState(() => _category = v),
                       ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+              if (!p.hasTime) ...[
+                const SizedBox(height: Space.s),
+                Text(
+                  'Add a time, like 7 PM or 19:30, to put it on the calendar.',
+                  style: context.type.bodySmall?.copyWith(color: c.ink),
                 ),
+              ],
             ],
-          ),
+            const SizedBox(height: Space.l),
+            InkButton(
+              label: p != null && p.isRecurring ? 'Add the repeats to my calendar' : 'Add to my calendar',
+              expand: true,
+              loading: _saving,
+              onPressed: p != null && p.hasTime && _category != null ? _create : null,
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-// Map of category names to their corresponding icons
-final Map<String, IconData> categoryIcons = {
-  'Anime': FontAwesomeIcons.tv,
-  'Manga': FontAwesomeIcons.book,
-  'Gaming': FontAwesomeIcons.gamepad,
-  'Study': FontAwesomeIcons.graduationCap,
-  'Work': FontAwesomeIcons.briefcase,
-  'Personal': FontAwesomeIcons.user,
-  'General': FontAwesomeIcons.tasks,
-};

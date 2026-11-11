@@ -1,5 +1,5 @@
 name: otakuplanner
-description: "A new Flutter project."
+description: "A planner for anime fans: tasks, calendar, plain-English automation, badges and a planning assistant."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -30,7 +30,6 @@ environment:
 dependencies:
   animated_splash_screen: ^1.3.0
   animated_switch: ^0.0.3
-  another_flutter_splash_screen: 1.2.1
   connectivity_plus: ^4.0.2
   cupertino_icons: ^1.0.8
   dio: ^5.8.0+1
@@ -40,17 +39,13 @@ dependencies:
     sdk: flutter
   flutter_dotenv: ^5.1.0
   flutter_launcher_icons: ^0.13.1
-  font_awesome_flutter: ^10.1.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  http: ^1.4.0
   image_picker: ^0.8.7+4
   intl: ^0.20.2
   json_serializable: ^6.9.5
   provider: ^6.1.1
   shared_preferences: ^2.0.15
-  splash_view: 2.0.1
-  step_progress_indicator: ^1.0.2
   table_calendar: ^3.0.8
   timezone: ^0.9.2
   json_annotation: ^4.9.0
@@ -82,12 +77,15 @@ flutter:
     # list giving the asset and other descriptors for the font. For
     # example:
   fonts:
-    - family: AbhayaLibre
-      fonts:
-        - asset: assets/fonts/AbhayaLibre-Regular.ttf
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 flutter_icons:

@@ -83,4 +83,13 @@ void main() {
       expect(() => parse(text), returnsNormally, reason: text);
     }
   });
+
+  test('"by 5pm" in the middle leaves the title', () {
+    final t = parse('Send the essay by 5pm to Ada tomorrow');
+    expect(t.title, 'Send the essay to Ada');
+    expect(t.time12, '5:00 PM');
+    expect(t.date, DateTime(2026, 11, 6));
+    expect(parse('Finish the report by 17:30').title, 'Finish the report');
+    expect(parse('Lunch around noon on Friday').title, 'Lunch');
+  });
 }

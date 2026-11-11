@@ -1,10 +1,14 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/themes/theme.dart'; // Add this import
+import 'package:otakuplanner/widgets/ink_kit.dart';
 import 'package:provider/provider.dart';
 
+/// Change or remove the profile photo. The photo stays on this phone; the
+/// username and email come from the account and are shown, not edited,
+/// because the server has no way to change them yet.
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
 
@@ -13,257 +17,143 @@ class EditProfile extends StatefulWidget {
 }
 
 class _EditProfileState extends State<EditProfile> {
-  File? _profileImage; // To store the selected profile image
+  bool _picking = false;
 
-  // Function to pick an image
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path); // Store the selected image
-      });
-      Provider.of<UserProvider>(context, listen: false)
-        .setProfileImagePath(pickedFile.path);
+    if (_picking) return;
+    setState(() => _picking = true);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (picked != null) userProvider.setProfileImagePath(picked.path);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't open your photos. Check the app's photo access.")),
+      );
+    } finally {
+      if (mounted) setState(() => _picking = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final username = Provider.of<UserProvider>(context).username;
-    final profileImagePath = Provider.of<UserProvider>(context).profileImagePath;
+    final c = context.ink;
+    final user = Provider.of<UserProvider>(context);
+    final path = user.profileImagePath;
+    final hasImage = path.isNotEmpty && File(path).existsSync();
 
-    // Get theme-specific colors
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    // final cardColor = OtakuPlannerTheme.getCardColor(context);
-    final textColor = OtakuPlannerTheme.getTextColor(context);
-    final borderColor = OtakuPlannerTheme.getBorderColor(context);
-    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
-    // final boxShadow = OtakuPlannerTheme.getBoxShadow(context);
-    
-    // Initialize profile image from provider if available
-    if (_profileImage == null && profileImagePath.isNotEmpty) {
-      _profileImage = File(profileImagePath);
-    }
-
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.only(top: 70, left: 50.0, right: 50),
-          child: Center(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 55,
-                      backgroundColor: buttonColor,
-                      backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!)
-                          : null,
-                      child: _profileImage == null
-                          ? Icon(
-                              Icons.person,
-                              size: 55,
-                              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
-                            )
-                          : null,
+    return Scaffold(
+      appBar: const InkBackBar(title: 'Profile photo'),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(Space.page, Space.l, Space.page, Space.l),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 168,
+                      height: 168,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: c.ink, width: Strokes.panel),
+                        borderRadius: Radii.controlAll,
+                        image: hasImage
+                            ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
+                            : null,
+                      ),
+                      child: hasImage
+                          ? null
+                          : Semantics(
+                              label: 'No profile photo yet',
+                              child: const MascotLine(height: 112),
+                            ),
                     ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: CircleAvatar(
-                          radius: 15,
-                          backgroundColor: buttonColor,
-                          child: Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 14,
+                  ),
+                  const SizedBox(height: Space.l),
+                  Panel(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            Space.gutter,
+                            Space.gutter,
+                            Space.gutter,
+                            Space.xs,
                           ),
+                          child: Kicker('Account'),
                         ),
-                      ),
+                        if (user.fullName.isNotEmpty) ...[
+                          _ReadOnlyRow(label: 'Name', value: user.fullName),
+                          const InkRule(indent: Space.gutter),
+                        ],
+                        _ReadOnlyRow(label: 'Username', value: user.username),
+                        const InkRule(indent: Space.gutter),
+                        _ReadOnlyRow(label: 'Email', value: user.email),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.page, 0, Space.page, Space.m),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  InkButton(
+                    label: hasImage ? 'Choose another photo' : 'Choose a photo',
+                    icon: Icons.photo_library_outlined,
+                    expand: true,
+                    loading: _picking,
+                    onPressed: _pickImage,
+                  ),
+                  if (hasImage) ...[
+                    const SizedBox(height: Space.s),
+                    InkButton.quiet(
+                      label: 'Remove photo',
+                      expand: true,
+                      onPressed: () => user.setProfileImagePath(''),
                     ),
                   ],
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-                Text(
-                  username,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-                Text(
-                  "My Profile",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Username",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: TextField(
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
-                      filled: false,
-                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(1.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: buttonColor,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Email",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: TextField(
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
-                      filled: false,
-                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(1.0),
-                        borderSide: BorderSide(
-                          color: buttonColor,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "About Me",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.01),
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: TextField(
-                    style: TextStyle(color: textColor),
-                    maxLines: 7,
-                    decoration: InputDecoration(
-                      hintStyle: TextStyle(color: textColor.withOpacity(0.6)),
-                      filled: false,
-                      fillColor: isDarkMode ? OtakuPlannerTheme.darkCardBackground : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide: BorderSide(
-                          color: borderColor,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(1.0),
-                        borderSide: BorderSide(
-                          color: buttonColor,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadOnlyRow extends StatelessWidget {
+  const _ReadOnlyRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.gutter, vertical: 10),
+      child: Row(
+        children: [
+          SizedBox(width: 88, child: Text(label, style: context.type.bodySmall)),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '—' : value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.bodyMedium,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

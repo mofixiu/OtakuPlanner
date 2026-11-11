@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:otakuplanner/themes/theme.dart';
+import 'package:otakuplanner/widgets/ink_kit.dart';
 import 'package:provider/provider.dart';
 
 // Add a global key for ScaffoldMessenger
@@ -98,300 +98,124 @@ class NotificationService extends ChangeNotifier {
     _globalNotificationService?.addNotification(title, message);
   }
 
-  // Update the static showToast method to never use context that might be disposed
+  /// Records the message in the notifications list and shows it briefly at
+  /// the bottom. Uses the app-wide messenger, so a closed screen's context is
+  /// never touched.
   static void showToast(BuildContext? context, String title, String message) {
-    // Add to notification list first (this can still use context safely)
     addGlobalNotification(context, title, message);
-    
-    // Get theme-aware colors if context is available
-    Color snackBarColor;
-    Color textColor = Colors.white;
-    
-    // Store context reference before any async operations
-    BuildContext? safeContext = context;
-    bool contextIsValid = safeContext != null;
-    bool isDarkMode = false;
-    
-    // Try to read theme info immediately (not in a future)
-    try {
-      if (contextIsValid) {
-        isDarkMode = Theme.of(safeContext).brightness == Brightness.dark;
-        
-        // Use theme-aware colors
-        if (title.contains('Completed')) {
-          snackBarColor = isDarkMode ? Colors.green.shade700 : Colors.green;
-        } else {
-          snackBarColor = OtakuPlannerTheme.getButtonColor(safeContext);
-        }
-      } else {
-        // Fallback colors if no context
-        snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
-      }
-    } catch (e) {
-      // If any error occurs reading the context, use fallback colors
-      contextIsValid = false;
-      snackBarColor = title.contains('Completed') ? Colors.green : Color(0xFF1E293B);
-    }
-    
-    // Create the SnackBar
-    final snackBar = SnackBar(
-      content: Row(
-        children: [
-          title.contains('Completed') 
-              ? Icon(Icons.check_circle_outline, color: textColor)
-              : Icon(Icons.notifications_active, color: textColor),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    rootScaffoldMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 3),
+          content: Text.rich(
+            TextSpan(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
-                ),
-                Text(message, style: TextStyle(color: textColor)),
+                TextSpan(text: '$title  ', style: const TextStyle(fontWeight: FontWeight.w700)),
+                TextSpan(text: message),
               ],
             ),
           ),
-        ],
-      ),
-      backgroundColor: snackBarColor,
-      duration: Duration(seconds: 3),
-      behavior: SnackBarBehavior.floating,
-      margin: EdgeInsets.all(10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-//     final scaffoldMessenger = rootScaffoldMessengerKey.currentState;
-// if (scaffoldMessenger == null) {
-//   print("ERROR: ScaffoldMessenger is null! Make sure to set scaffoldMessengerKey in MaterialApp");
-  
-//   // Last resort - try to find any active context to show notification
-//   try {
-//     // Find the most recent navigator to show our snackbar
-//     final navigatorKey = GlobalKey<NavigatorState>();
-//     if (navigatorKey.currentState?.overlay?.context != null) {
-//       ScaffoldMessenger.of(navigatorKey.currentState!.overlay!.context)
-//           .showSnackBar(snackBar);
-//     }
-//   } catch (e) {
-//     print("Couldn't show notification: $e");
-//   }
-// } else {
-//   // Show with our global key
-//   scaffoldMessenger.showSnackBar(snackBar);
-// }
-    
-    // IMPORTANT: Always use the global key instead of context
-    // This ensures we don't use a potentially disposed context
-    rootScaffoldMessengerKey.currentState?.showSnackBar(snackBar);
+        ),
+      );
   }
 }
 
+/// The notifications list, opened from the bell.
 class NotificationDropdown extends StatelessWidget {
-  const NotificationDropdown({Key? key}) : super(key: key);
+  const NotificationDropdown({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final notifications = Provider.of<NotificationService>(context).notifications;
-    final notificationService = Provider.of<NotificationService>(context, listen: false);
-    
-    // Get theme colors
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = OtakuPlannerTheme.getCardColor(context);
-    final textColor = OtakuPlannerTheme.getTextColor(context);
-    final borderColor = OtakuPlannerTheme.getBorderColor(context);
-    final buttonColor = OtakuPlannerTheme.getButtonColor(context);
+    final service = Provider.of<NotificationService>(context);
+    final notifications = service.notifications;
+    final c = context.ink;
 
     return Dialog(
-      backgroundColor: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 5,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        padding: EdgeInsets.symmetric(vertical: 16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: Space.page, vertical: Space.xl),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.fromLTRB(Space.m, Space.m, Space.s, Space.s),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Notifications",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          notificationService.markAllAsRead();
-                        },
-                        child: Text(
-                          "Mark all as read",
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.lightBlue : Colors.blue,
-                            fontSize: 16
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                    ],
-                  ),
+                  Expanded(child: Text('Notifications', style: context.type.titleLarge)),
+                  if (service.unreadCount > 0)
+                    TextButton(onPressed: service.markAllAsRead, child: const Text('Mark all read')),
                 ],
               ),
             ),
-            Divider(color: borderColor.withOpacity(0.5)),
-            notifications.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.notifications_off_outlined,
-                            size: 48,
-                            color: textColor.withOpacity(0.5),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            "No notifications yet",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: textColor.withOpacity(0.5),
+            const InkRule(strong: true),
+            if (notifications.isEmpty)
+              const EmptyState(message: 'Nothing new. Reminders and changes show up here.', artHeight: 64)
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: notifications.length,
+                  separatorBuilder: (_, __) => const InkRule(),
+                  itemBuilder: (context, index) {
+                    final note = notifications[index];
+                    return InkWell(
+                      onTap: () => service.markAsRead(index),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(Space.m, Space.gutter, Space.xs, Space.gutter),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(top: 7, right: Space.s),
+                              decoration: BoxDecoration(
+                                color: note.isRead ? Colors.transparent : c.ink,
+                                border: Border.all(color: c.ink, width: Strokes.hairline),
+                              ),
                             ),
-                          ),
-                        ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    note.title,
+                                    style: context.type.titleSmall?.copyWith(
+                                      fontWeight: note.isRead ? FontWeight.w500 : FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(note.message, style: context.type.bodyMedium),
+                                  const SizedBox(height: 2),
+                                  Text(_formatTimestamp(note.timestamp), style: context.type.bodySmall),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Remove',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => service.removeNotification(index),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )
-                : Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: notifications.length,
-                      separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        color: borderColor.withOpacity(0.3),
-                      ),
-                      itemBuilder: (context, index) {
-                        final note = notifications[index];
-                        final isCompleted = note.title.contains('Completed');
-                        
-                        // Theme-aware notification item colors
-                        final itemBgColor = note.isRead
-                            ? null
-                            : isDarkMode
-                                ? buttonColor.withOpacity(0.2)
-                                : Color(0xFFF0F9FF);
-                        
-                        final iconColor = isCompleted
-                            ? isDarkMode ? Colors.lightGreen : Colors.green
-                            : isDarkMode ? Colors.lightBlue : Colors.blue;
-                        
-                        final iconBgColor = isCompleted
-                            ? (isDarkMode ? Colors.green.shade900 : Colors.green.withOpacity(0.1))
-                            : (isDarkMode ? Colors.blue.shade900 : Colors.blue.withOpacity(0.1));
-                            
-                        return ListTile(
-                          tileColor: itemBgColor,
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: iconBgColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                isCompleted
-                                    ? Icons.check_circle_outline
-                                    : Icons.notifications_active,
-                                color: iconColor,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            note.title,
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: note.isRead ? FontWeight.normal : FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                note.message,
-                                style: TextStyle(color: textColor.withOpacity(0.7)),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                _formatTimestamp(note.timestamp),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: textColor.withOpacity(0.5),
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: textColor.withOpacity(0.7),
-                            ),
-                            onPressed: () {
-                              notificationService.removeNotification(index);
-                            },
-                          ),
-                          onTap: () {
-                            notificationService.markAsRead(index);
-                          },
-                          isThreeLine: true,
-                        );
-                      },
-                    ),
-                  ),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    notificationService.clearAll();
+                    );
                   },
-                  child: Text(
-                    "Clear all",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                    ),
-                  ),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    "Close",
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.lightBlue : Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
-            )
+              ),
+            const InkRule(strong: true),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s, vertical: Space.xs),
+              child: Row(
+                children: [
+                  if (notifications.isNotEmpty)
+                    TextButton(onPressed: service.clearAll, child: const Text('Clear all')),
+                  const Spacer(),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -399,70 +223,14 @@ class NotificationDropdown extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inSeconds < 60) {
-      return "Just now";
-    } else if (difference.inMinutes < 60) {
-      return "${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago";
-    } else if (difference.inHours < 24) {
-      return "${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago";
-    } else {
-      return "${timestamp.day}/${timestamp.month}/${timestamp.year} at ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}";
+    final difference = DateTime.now().difference(timestamp);
+    if (difference.inSeconds < 60) return 'Just now';
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
     }
-  }
-}
-
-// Badge widget to show unread notification count
-class NotificationBadge extends StatelessWidget {
-  final Widget child;
-  final bool showZero;
-
-  const NotificationBadge({
-    Key? key,
-    required this.child,
-    this.showZero = false,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<NotificationService>(
-      builder: (context, notificationService, _) {
-        final count = notificationService.unreadCount;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            child,
-            if (count > 0 || showZero)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  padding: EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Center(
-                    child: Text(
-                      count.toString(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
+    if (difference.inHours < 24) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    }
+    return PlannerFormat.dayTime(timestamp, PlannerFormat.clock(timestamp.hour, timestamp.minute));
   }
 }

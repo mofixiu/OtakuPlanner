@@ -81,15 +81,19 @@ final _daily = RegExp(
 final _weekly = RegExp(r'\b(?:every\s+week|weekly)\b', caseSensitive: false);
 final _every = RegExp(r'\bevery\b', caseSensitive: false);
 
+/// The little word before a time ("at 8pm", "by 5pm") goes with it, so it
+/// doesn't stay behind in the title.
+const _timeLead = r'(?:(?:at|by|before|around|from|until|till)\s+)?';
+
 /// "8pm", "8 pm", "8:30pm", "8.30 p.m."
 final _time12 = RegExp(
-  r'\b(?:at\s+)?(\d{1,2})(?:[:.](\d{2}))?\s*([ap])\.?m\b\.?',
+  '\\b$_timeLead' r'(\d{1,2})(?:[:.](\d{2}))?\s*([ap])\.?m\b\.?',
   caseSensitive: false,
 );
 
 /// "17:30", "08:00"
-final _time24 = RegExp(r'\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b', caseSensitive: false);
-final _noon = RegExp(r'\b(?:at\s+)?(noon|midday|midnight)\b', caseSensitive: false);
+final _time24 = RegExp('\\b$_timeLead' r'([01]?\d|2[0-3]):([0-5]\d)\b', caseSensitive: false);
+final _noon = RegExp('\\b$_timeLead' r'(noon|midday|midnight)\b', caseSensitive: false);
 
 /// Checked in order; the first category with a whole-word hit wins.
 const _categories = {
