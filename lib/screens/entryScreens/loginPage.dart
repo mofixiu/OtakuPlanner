@@ -174,7 +174,8 @@ class _LoginState extends State<Login> {
                     ),
                     child: TextFormField(
                       controller: _passwordController,
-                      obscureText: _isPasswordVisible,
+                      // Hidden until the eye is tapped.
+                      obscureText: !_isPasswordVisible,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
@@ -188,7 +189,12 @@ class _LoginState extends State<Login> {
                         suffixIcon: Padding(
                           padding: EdgeInsets.only(left: 15, right: 10),
                           child: IconButton(
-                            icon: Icon(FontAwesomeIcons.eye, color: Colors.grey.shade600, size: 20),
+                            tooltip: _isPasswordVisible ? 'Hide password' : 'Show password',
+                            icon: Icon(
+                              _isPasswordVisible ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
                             onPressed: () {
                               setState(() {
                                 _isPasswordVisible = !_isPasswordVisible;
