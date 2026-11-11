@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 // import 'dart:math';
 import 'package:http/http.dart' as http;
@@ -44,10 +45,10 @@ class JikanService {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['data']);
       } else {
-        print('Error: ${response.statusCode}');
+        developer.log('Error: ${response.statusCode}');
       }
     } catch (e) {
-      print('Fetch characters failed: $e');
+      developer.log('Fetch characters failed: $e');
     }
 
     return [];
@@ -62,7 +63,7 @@ class JikanService {
         return List<Map<String, dynamic>>.from(data['data']);
       }
     } catch (e) {
-      print('Search error: $e');
+      developer.log('Search error: $e');
     }
     return [];
   }

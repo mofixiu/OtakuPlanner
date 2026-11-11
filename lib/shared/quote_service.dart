@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
@@ -77,7 +78,7 @@ class QuoteService {
         _cachedQuote = Quote(text: jsonData['text'], author: jsonData['author']);
         _cachedDate = quoteDate;
       } catch (e) {
-        print('Error loading cached quote: $e');
+        developer.log('Error loading cached quote: $e');
       }
     }
   }
@@ -141,7 +142,7 @@ class QuoteService {
         return Quote.fromJson(json.decode(response.body));
       }
     } catch (e) {
-      print('First API failed: $e');
+      developer.log('First API failed: $e');
     }
 
     // Try backup API
@@ -158,7 +159,7 @@ class QuoteService {
         }
       }
     } catch (e) {
-      print('Second API failed: $e');
+      developer.log('Second API failed: $e');
     }
 
     // If both APIs fail, fallback to local quotes

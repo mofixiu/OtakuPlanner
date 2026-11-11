@@ -577,7 +577,7 @@ class _Setuppage2State extends State<Setuppage2> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error fetching characters: $e');
+      debugPrint('Error fetching characters: $e');
       setState(() {
         isLoading = false;
       });
@@ -605,7 +605,7 @@ class _Setuppage2State extends State<Setuppage2> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error searching characters: $e');
+      debugPrint('Error searching characters: $e');
       setState(() {
         isLoading = false;
       });

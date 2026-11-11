@@ -1,3 +1,4 @@
+import 'package:otakuplanner/services/task_text_parser.dart';
 import 'dart:developer' show log;
 
 import 'package:flutter/material.dart';
@@ -32,7 +33,7 @@ class _TaskAutomationState extends State<TaskAutomation> {
     super.dispose();
   }
 
-  // Process the text input with basic NLP
+  // Reads the typed task and shows what was understood.
   void _processTaskText() {
     setState(() {
       _isProcessing = true;
@@ -49,146 +50,28 @@ class _TaskAutomationState extends State<TaskAutomation> {
       return;
     }
 
-    // Simulate NLP processing with a delay
-    Future.delayed(Duration(milliseconds: 800), () {
-      final result = _parseTaskText(text);
-      
-      // Check if time is specified before proceeding
-      if (result['time'] == null || result['time'].isEmpty) {
-        setState(() {
-          _isProcessing = false;
-          // Only set error message but keep _extractedData empty to prevent showing results
-          _parsingResult = 'Missing time information. Please include a time in your task description (e.g., 3 PM, 7:30 AM)';
-          _extractedData = {}; // Ensure data is empty
-        });
-        
-        // Also show toast notification for extra visibility
-        // NotificationService.showToast(
-        //   context,
-        //   "Missing Information",
-        //   "Please include a time in your task description (e.g., 3 PM, 7:30 AM)",
-        // );
-        return;
-      }
-      
+    final result = _parseTaskText(text);
+    if (result['time'] == null || result['time'].isEmpty) {
       setState(() {
-        _extractedData = result;
-        _selectedCategory = result['category']; // Set the initial category
-        _parsingResult = _formatParsingResult(result);
         _isProcessing = false;
+        _parsingResult =
+            'Missing time information. Please include a time in your task description (e.g., 3 PM, 7:30 AM, 17:30)';
+        _extractedData = {};
       });
+      return;
+    }
+
+    setState(() {
+      _extractedData = result;
+      _selectedCategory = result['category'];
+      _parsingResult = _formatParsingResult(result);
+      _isProcessing = false;
     });
   }
 
-  // Basic NLP to extract task information
-  Map<String, dynamic> _parseTaskText(String text) {
-    final lowerText = text.toLowerCase();
-    Map<String, dynamic> result = {
-      'title': '',
-      'day': '',
-      'time': '',
-      'isRecurring': false,
-      'category': 'General',
-      "specificDate": null,
-    };
-    if (lowerText.contains('tomorrow')) {
-      // Calculate tomorrow's date
-      final tomorrow = DateTime.now().add(Duration(days: 1));
-      result['specificDate'] = tomorrow;
-      // Also set the day name for display purposes
-      result['day'] = _getDayName(tomorrow.weekday);
-    } else if (lowerText.contains('today')) {
-      // Handle "today" references
-      result['specificDate'] = DateTime.now();
-      result['day'] = _getDayName(DateTime.now().weekday);
-    }
+  // Reads the day, time, repeat and category out of the typed task.
+  Map<String, dynamic> _parseTaskText(String text) => parseTaskText(text).toMap();
 
-    // Extract day of week
-    final days = [
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
-    ];
-    for (var day in days) {
-      if (lowerText.contains(day)) {
-        result['day'] = day[0].toUpperCase() + day.substring(1);
-        break;
-      }
-    }
-
-    // Extract time
-    final timeRegex = RegExp(r'(\d{1,2})[:.]?(\d{2})?\s*(am|pm|AM|PM)');
-    final timeMatch = timeRegex.firstMatch(text);
-    if (timeMatch != null) {
-      final hour = timeMatch.group(1);
-      final minute = timeMatch.group(2) ?? '00';
-      final ampm = timeMatch.group(3)?.toUpperCase() ?? '';
-      result['time'] = '$hour:$minute $ampm';
-    } else {
-      // Try alternate format (like 5.30pm or just 5pm)
-      final altTimeRegex = RegExp(r'(\d{1,2})(?:\s*(am|pm|AM|PM))');
-      final altTimeMatch = altTimeRegex.firstMatch(text);
-      if (altTimeMatch != null) {
-        final hour = altTimeMatch.group(1);
-        final ampm = altTimeMatch.group(2)?.toUpperCase() ?? '';
-        result['time'] = '$hour:00 $ampm';
-      }
-    }
-
-    result['isRecurring'] =
-        lowerText.contains('every') || lowerText.contains('weekly');
-
-    final categories = [
-      'Anime',
-      'Manga',
-      'Gaming',
-      'Study',
-      'Work',
-      'Personal',
-    ];
-    for (var category in categories) {
-      if (lowerText.contains(category.toLowerCase())) {
-        result['category'] = category;
-        break;
-      }
-    }
-
-    // Extract title (everything before "every" or day of week)
-    String title = text;
-    if (lowerText.contains('every')) {
-      title = text.substring(0, lowerText.indexOf('every')).trim();
-    } else {
-      for (var day in days) {
-        if (lowerText.contains(day)) {
-          title =
-              text
-                  .substring(0, lowerText.indexOf(day, lowerText.indexOf(day)))
-                  .trim();
-          break;
-        }
-      }
-    }
-    result['title'] = title;
-
-    return result;
-  }
-
-  String _getDayName(int weekday) {
-    const Map<int, String> dayNames = {
-      DateTime.monday: 'Monday',
-      DateTime.tuesday: 'Tuesday',
-      DateTime.wednesday: 'Wednesday',
-      DateTime.thursday: 'Thursday',
-      DateTime.friday: 'Friday',
-      DateTime.saturday: 'Saturday',
-      DateTime.sunday: 'Sunday',
-    };
-    return dayNames[weekday] ?? '';
-  }
   String _formatParsingResult(Map<String, dynamic> data) {
   // Add null checks before using isEmpty
   if ((data['title'] == null || data['title'].isEmpty) && 
@@ -331,7 +214,7 @@ String _formatParsingResultWithoutCategory(Map<String, dynamic> data) {
           'time': databaseTime,
           'date': dateString,
           'completed': false,
-          'frequency': 'weekly', // Default frequency
+          'frequency': _extractedData['frequency'] ?? 'weekly',
         };
 
         final response = await saveRecurringTaskToDatabase(recurringTaskData);

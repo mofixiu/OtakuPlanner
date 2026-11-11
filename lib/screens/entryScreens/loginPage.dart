@@ -439,9 +439,6 @@ class _LoginState extends State<Login> {
               // Ensure data is actually saved by calling save explicitly
               await userProvider.saveUserData(); // Change from _saveUserData() to saveUserData()
 
-              // Debug the saved data
-              userProvider.debugPrintHiveData();
-
               // Sync tasks from database after successful login
               if (userData['id'] != null) {
                 try {

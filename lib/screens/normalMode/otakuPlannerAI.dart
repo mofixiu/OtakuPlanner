@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
-import 'package:otakuplanner/services/ai_service.dart';
+import 'package:otakuplanner/services/planner_tips.dart';
 import 'package:otakuplanner/themes/theme.dart';
 import 'package:provider/provider.dart';
 
@@ -63,35 +63,15 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
       // Clear the input field
       _textController.clear();
       
-      // Add "thinking" message
+      // The tips are built in, so the reply is immediate.
       _chatMessages.add({
-        'text': "Thinking...",
+        'text': PlannerTips.reply(text),
         'isUser': false,
-        'isTyping': true,
         'timestamp': DateTime.now(),
       });
     });
 
-    // Scroll to bottom immediately
     _scrollToBottom();
-
-    // Get AI response
-    AIService.generateResponse(text).then((response) {
-      setState(() {
-        // Remove the "thinking" message
-        _chatMessages.removeWhere((msg) => msg['isTyping'] == true);
-        
-        // Add actual AI response
-        _chatMessages.add({
-          'text': response,
-          'isUser': false,
-          'timestamp': DateTime.now(),
-        });
-        
-        // Scroll to bottom after adding message
-        _scrollToBottom();
-      });
-    });
   }
 
   // Helper method for scrolling
@@ -130,7 +110,9 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
           ),
           SizedBox(height: 24),
           Text(
-            'Hello, ${username[0].toUpperCase()}${username.substring(1).toLowerCase()}!',
+            username.isEmpty
+                ? 'Hello!'
+                : 'Hello, ${username[0].toUpperCase()}${username.substring(1).toLowerCase()}!',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w500,

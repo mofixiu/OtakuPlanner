@@ -33,15 +33,14 @@ class UserProvider with ChangeNotifier {
       _userBox = await Hive.openBox(_boxName);
       await loadUserData();
       _isInitialized = true;
-      print('UserProvider Hive initialization complete');
     } catch (e) {
-      print('Error initializing Hive: $e');
+      debugPrint('Error initializing Hive: $e');
       // Fallback: create a new box if opening fails
       try {
         _userBox = await Hive.openBox(_boxName);
         _isInitialized = true;
       } catch (fallbackError) {
-        print('Fallback initialization failed: $fallbackError');
+        debugPrint('Fallback initialization failed: $fallbackError');
       }
     }
   }
@@ -49,7 +48,6 @@ class UserProvider with ChangeNotifier {
   // Load user data from Hive
   Future<void> loadUserData() async {
     if (!_isInitialized) {
-      print('UserProvider not initialized, cannot load data');
       return;
     }
     
@@ -61,23 +59,16 @@ class UserProvider with ChangeNotifier {
       _profileImagePath = _userBox.get('profileImagePath', defaultValue: '') ?? '';
       _userId = _userBox.get('userId');
       
-      print('User data loaded from Hive:');
-      print('Username: "$_username"');
-      print('Email: "$_email"');
-      print('UserId: $_userId');
-      print('Full Name: "$_fullName"');
-      print('Join Date: "$_joinDate"');
       
       notifyListeners();
     } catch (e) {
-      print('Error loading user data from Hive: $e');
+      debugPrint('Error loading user data from Hive: $e');
     }
   }
 
   // Save user data to Hive
   Future<void> _saveUserData() async {
     if (!_isInitialized) {
-      print('UserProvider not initialized, cannot save data');
       return;
     }
     
@@ -96,14 +87,8 @@ class UserProvider with ChangeNotifier {
       // Force Hive to flush to disk
       await _userBox.flush();
       
-      print('User data saved to Hive successfully');
-      print('Saved username: $_username');
-      print('Saved email: $_email');
-      print('Saved userId: $_userId');
-      print('Saved fullName: $_fullName');
-      print('Saved joinDate: $_joinDate');
     } catch (e) {
-      print('Error saving user data to Hive: $e');
+      debugPrint('Error saving user data to Hive: $e');
     }
   }
 
@@ -169,7 +154,6 @@ class UserProvider with ChangeNotifier {
     _fullName = fullName;
     if (joinDate != null) {
       _joinDate = joinDate;
-      print('Join date set in UserProvider: $joinDate');
     }
     
     // Save immediately and wait for completion
@@ -200,29 +184,10 @@ class UserProvider with ChangeNotifier {
       _fullName = '';
       _joinDate = '';
       
-      print('User data cleared from Hive');
       notifyListeners();
     } catch (e) {
-      print('Error clearing user data from Hive: $e');
+      debugPrint('Error clearing user data from Hive: $e');
     }
-  }
-
-  // Debug method to print all Hive data
-  void debugPrintHiveData() {
-    if (!_isInitialized) {
-      print('UserProvider not initialized yet');
-      return;
-    }
-    
-    print('=== HIVE DEBUG DATA ===');
-    print('All keys in box: ${_userBox.keys.toList()}');
-    print('Username: ${_userBox.get('username')}');
-    print('Email: ${_userBox.get('email')}');
-    print('Full Name: ${_userBox.get('fullName')}');
-    print('Join Date: ${_userBox.get('joinDate')}');
-    print('User ID: ${_userBox.get('userId')}');
-    print('Profile Image: ${_userBox.get('profileImagePath')}');
-    print('=== END HIVE DEBUG ===');
   }
 
   // Close Hive box when provider is disposed
@@ -232,48 +197,5 @@ class UserProvider with ChangeNotifier {
       _userBox.close();
     }
     super.dispose();
-  }
-
-  Future<void> testDataPersistence() async {
-    print('=== TESTING DATA PERSISTENCE ===');
-    
-    // Save test data
-    _username = 'testuser';
-    _email = 'test@test.com';
-    _userId = 123;
-    await _saveUserData();
-    
-    // Clear memory
-    _username = '';
-    _email = '';
-    _userId = null;
-    
-    // Reload from Hive
-    await loadUserData();
-    
-    print('After reload:');
-    print('Username: "$_username"');
-    print('Email: "$_email"');
-    print('UserID: $_userId');
-    
-    if (_username == 'testuser' && _email == 'test@test.com' && _userId == 123) {
-      print('✅ Data persistence test PASSED');
-    } else {
-      print('❌ Data persistence test FAILED');
-    }
-    print('=== END TEST ===');
-  }
-
-  // Debug method to print user provider state
-  void debugPrintProviderState() {
-    print('=== USER PROVIDER DEBUG ===');
-    print('Username: "$_username"');
-    print('Email: "$_email"'); 
-    print('User ID: $_userId');
-    print('Full Name: "$_fullName"');
-    print('Join Date: "$_joinDate"');
-    print('Is Initialized: $_isInitialized');
-    print('Has Valid User Data: $hasValidUserData');
-    print('=== END DEBUG ===');
   }
 }

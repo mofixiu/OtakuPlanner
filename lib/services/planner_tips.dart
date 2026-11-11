@@ -1,17 +1,7 @@
-// ignore_for_file: unused_field, unused_import
-
-import 'dart:convert';
-import 'dart:math';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-class AIService {
-  static const String _baseUrl = 'https://api.openai.com/v1/chat/completions';
-  
-  static Future<String> generateResponse(String userPrompt) async {
-    // Simulate network delay for realism
-    await Future.delayed(Duration(milliseconds: 1200 + Random().nextInt(800)));
-    
+/// Built-in planning tips for the assistant screen. It matches keywords in
+/// what you type and answers on the spot; there is no language model behind it.
+class PlannerTips {
+  static String reply(String userPrompt) {
     final lowerPrompt = userPrompt.toLowerCase();
     
     // Task creation patterns
