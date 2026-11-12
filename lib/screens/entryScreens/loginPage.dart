@@ -47,81 +47,94 @@ class _LoginState extends State<Login> {
     final c = context.ink;
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(Space.l, Space.xl, Space.l, Space.l),
-          child: AutofillGroup(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const AuthHeader(
-                    title: 'OtakuPlanner',
-                    line: 'Your tasks, your shows and your streak, on one page.',
-                  ),
-                  const SizedBox(height: Space.xl),
-                  AuthField(
-                    label: 'Email',
-                    controller: _emailController,
-                    hint: 'you@example.com',
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    textInputAction: TextInputAction.next,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      } else if (!authEmailPattern.hasMatch(value)) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: Space.m),
-                  AuthField(
-                    label: 'Password',
-                    controller: _passwordController,
-                    // Hidden until the eye is tapped.
-                    obscure: !_isPasswordVisible,
-                    autofillHints: const [AutofillHints.password],
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) {
-                      if (!_isLoading) _loginUser();
-                    },
-                    suffix: PasswordToggle(
-                      visible: _isPasswordVisible,
-                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(Space.l, Space.m, Space.l, Space.m),
+            child: ConstrainedBox(
+              // At least a screen tall, so the sign-up link sits at the foot of the page.
+              constraints: BoxConstraints(minHeight: viewport.maxHeight - Space.m * 2),
+              child: IntrinsicHeight(
+                child: AutofillGroup(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _LoginHero(),
+                        const SizedBox(height: Space.l),
+                        Text('OtakuPlanner', style: context.type.displaySmall),
+                        const SizedBox(height: Space.xs),
+                        Text(
+                          'Your tasks, shows and streak, on one page.',
+                          style: context.type.bodyMedium?.copyWith(color: c.inkMuted),
+                        ),
+                        const SizedBox(height: Space.l),
+                        AuthField(
+                          label: 'Email',
+                          controller: _emailController,
+                          hint: 'you@example.com',
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          textInputAction: TextInputAction.next,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email';
+                            } else if (!authEmailPattern.hasMatch(value)) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: Space.m),
+                        AuthField(
+                          label: 'Password',
+                          controller: _passwordController,
+                          // Hidden until the eye is tapped.
+                          obscure: !_isPasswordVisible,
+                          autofillHints: const [AutofillHints.password],
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) {
+                            if (!_isLoading) _loginUser();
+                          },
+                          suffix: PasswordToggle(
+                            visible: _isPasswordVisible,
+                            onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your password';
+                            } else if (value.length < 6) {
+                              return 'Password must be at least 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: Space.l),
+                        if (_errorMessage != null) ...[
+                          AuthNotice(_errorMessage!),
+                          const SizedBox(height: Space.m),
+                        ],
+                        InkButton(
+                          label: 'Log in',
+                          expand: true,
+                          loading: _isLoading,
+                          onPressed: _loginUser,
+                        ),
+                        const Spacer(),
+                        const SizedBox(height: Space.l),
+                        Container(height: Strokes.hairline, color: c.rule),
+                        const SizedBox(height: Space.s),
+                        Row(
+                          children: [
+                            Text('New here?', style: context.type.bodyMedium),
+                            const SizedBox(width: Space.xs),
+                            InkButton.quiet(label: 'Create an account', small: true, onPressed: _create),
+                          ],
+                        ),
+                      ],
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      } else if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: Space.m),
-                  if (_errorMessage != null) ...[
-                    AuthNotice(_errorMessage!),
-                    const SizedBox(height: Space.m),
-                  ],
-                  InkButton(
-                    label: 'Log in',
-                    expand: true,
-                    loading: _isLoading,
-                    onPressed: _loginUser,
-                  ),
-                  const SizedBox(height: Space.l),
-                  Container(height: Strokes.hairline, color: c.rule),
-                  const SizedBox(height: Space.m),
-                  Row(
-                    children: [
-                      Text('New here?', style: context.type.bodyMedium),
-                      const SizedBox(width: Space.xs),
-                      InkButton.quiet(label: 'Create an account', small: true, onPressed: _create),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -372,6 +385,62 @@ class _LoginState extends State<Login> {
         return DateTime.now();
       }
     }
+  }
+}
+
+/// The top of the log in page: a manga panel where focus lines close in on the
+/// mascot, who has one line to say. The panel's left edge crops the mascot's
+/// hair, as a frame would.
+class _LoginHero extends StatelessWidget {
+  const _LoginHero();
+
+  static const double _height = 236;
+  static const double _mascotHeight = 248;
+  static const double _mascotWidth = _mascotHeight * 274 / 365; // the line art's proportions
+
+  /// How far the mascot runs past the bottom of the panel.
+  static const double _mascotDrop = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ink;
+    const shape = BoxDecoration(borderRadius: Radii.panelAll);
+    return Container(
+      height: _height,
+      clipBehavior: Clip.antiAlias,
+      decoration: shape.copyWith(color: c.paper),
+      foregroundDecoration: shape.copyWith(border: Border.all(color: c.ink, width: Strokes.panel)),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: FocusLinesPainter(
+                color: c.ink,
+                // The middle of the mascot's face.
+                focus: const Offset(_mascotWidth / 2, _height + _mascotDrop - _mascotHeight * 0.45),
+                clear: const Size(_mascotWidth * 1.3, _mascotHeight * 1.12),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: -1,
+            bottom: -_mascotDrop,
+            child: MascotLine(height: _mascotHeight),
+          ),
+          Positioned(
+            right: Space.m,
+            top: Space.l,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 168),
+              child: SpeechBalloon(
+                tail: BalloonTail.left,
+                child: Text("Don't break the streak.", style: context.type.titleLarge),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
