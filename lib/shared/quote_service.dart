@@ -11,6 +11,17 @@ class Quote {
 
   /// "Kyojuro Rengoku, Demon Slayer"
   String get attribution => '$character, $series';
+
+  Map<String, String> toJson() => {'text': text, 'character': character, 'series': series};
+
+  static Quote? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final text = json['text'];
+    final character = json['character'];
+    final series = json['series'];
+    if (text is! String || character is! String || series is! String) return null;
+    return Quote(text: text, character: character, series: series);
+  }
 }
 
 class QuoteService {

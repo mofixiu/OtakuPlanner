@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
 import 'package:otakuplanner/models/taskMain.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
+import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/request.dart';
 import 'package:otakuplanner/shared/category_icons.dart';
 import 'package:otakuplanner/shared/formats.dart';
+import 'package:otakuplanner/shared/planner_stats.dart';
 import 'package:otakuplanner/shared/notifications.dart' show rootScaffoldMessengerKey;
+import 'package:otakuplanner/widgets/character_toast.dart';
 import 'package:provider/provider.dart';
 
 /// Adding, finishing, editing and deleting a task, the same way from every
@@ -102,9 +105,27 @@ class TaskActions {
 
   static Future<void> setDone(BuildContext context, DateTime day, Task task, bool done) async {
     final provider = Provider.of<TaskProvider>(context, listen: false);
+    // The task lists change in place, so count what matters before the tick.
+    final before = done ? Milestones.of(PlannerStats(provider.tasks)) : null;
     final updated = _copy(task, done: done);
     provider.editTask(PlannerFormat.dateOnly(day), task, updated);
+    if (before != null) _celebrate(context, before.reachedBy(Milestones.of(PlannerStats(provider.tasks))));
     await _push(context, day, updated);
+  }
+
+  /// In Anime mode the character marks a new badge, a cleared day or a
+  /// streak started today with one of their lines.
+  static void _celebrate(BuildContext context, Milestone? milestone) {
+    if (milestone == null) return;
+    final theme = Provider.of<ThemeProvider>(context, listen: false);
+    final character = theme.isAnime ? theme.character : null;
+    if (character == null) return;
+    CharacterToast.show(
+      character: character,
+      kicker: milestone.kicker,
+      headline: milestone.headline,
+      line: theme.randomLine(),
+    );
   }
 
   static Future<void> update(

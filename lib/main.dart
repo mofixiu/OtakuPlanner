@@ -12,7 +12,6 @@ import 'package:otakuplanner/shared/quote_service.dart';
 import 'package:otakuplanner/widgets/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:otakuplanner/shared/notifications.dart';
-import 'package:otakuplanner/themes/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,8 +63,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: rootScaffoldMessengerKey,  
       title: 'OtakuPlanner',
-      theme: OtakuPlannerTheme.lightTheme,
-      darkTheme: OtakuPlannerTheme.darkTheme,
+      theme: themeProvider.lightTheme,
+      darkTheme: themeProvider.darkTheme,
       themeMode: themeProvider.themeMode,
       home: SplashScreen(), // Simplified - splash handles everything
       routes: {

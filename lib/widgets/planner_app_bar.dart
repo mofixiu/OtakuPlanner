@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/otakuPlannerAI.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/themes/tokens.dart';
+import 'package:otakuplanner/widgets/character_portrait.dart';
 import 'package:otakuplanner/widgets/mascot.dart';
 import 'package:otakuplanner/widgets/speech_balloon.dart';
 import 'package:provider/provider.dart';
@@ -50,12 +52,7 @@ class PlannerAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ),
-      actions: const [
-        _BellButton(),
-        SizedBox(width: Space.s),
-        _AvatarButton(),
-        SizedBox(width: Space.page),
-      ],
+      actions: const [_BellButton(), SizedBox(width: Space.s), _AvatarButton(), SizedBox(width: Space.page)],
     );
   }
 }
@@ -119,6 +116,7 @@ class _AvatarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.ink;
     final user = Provider.of<UserProvider>(context);
+    final theme = Provider.of<ThemeProvider>(context);
     final path = user.profileImagePath;
     final hasImage = path.isNotEmpty && File(path).existsSync();
     final initial = user.username.isEmpty ? '?' : user.username[0].toUpperCase();
@@ -128,21 +126,24 @@ class _AvatarButton extends StatelessWidget {
       child: InkWell(
         borderRadius: Radii.controlAll,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Profile())),
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            border: Border.all(color: c.ink, width: Strokes.panel),
-            borderRadius: Radii.controlAll,
-            image: hasImage
-                ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: hasImage
-              ? null
-              : Text(initial, style: context.type.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-        ),
+        // In Anime mode the profile square shows the character.
+        child:
+            theme.isAnime
+                ? ExcludeSemantics(child: CharacterPortrait(character: theme.character!, width: 34))
+                : Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: c.ink, width: Strokes.panel),
+                    borderRadius: Radii.controlAll,
+                    image: hasImage ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover) : null,
+                  ),
+                  alignment: Alignment.center,
+                  child:
+                      hasImage
+                          ? null
+                          : Text(initial, style: context.type.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                ),
       ),
     );
   }

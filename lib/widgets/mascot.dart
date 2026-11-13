@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/themes/tokens.dart';
+import 'package:otakuplanner/widgets/character_portrait.dart';
 
 /// The logo mark (calendar and mascot) without the wordmark.
 class LogoMark extends StatelessWidget {
@@ -53,8 +54,8 @@ class MascotLine extends StatelessWidget {
   }
 }
 
-/// An empty state: mascot line art and one sentence in ink. An optional
-/// action sits under it.
+/// An empty state: mascot line art (the character's portrait in Anime mode)
+/// and one sentence in ink. An optional action sits under it.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -73,12 +74,17 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // In Anime mode the character stands in for the mascot.
+    final character = speakingCharacter(context);
     return Padding(
       padding: padding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          MascotLine(art: art, height: artHeight),
+          if (character != null)
+            CharacterPortrait(character: character, width: (artHeight + 12) * 2 / 3, aspectRatio: 2 / 3)
+          else
+            MascotLine(art: art, height: artHeight),
           const SizedBox(height: Space.gutter),
           Text(
             message,

@@ -271,3 +271,48 @@ class BadgeProgress {
   bool get started => current > 0;
   double get fraction => badge.goal == 0 ? 1 : current / badge.goal;
 }
+
+/// The numbers a tick can move, counted at one moment. Compare two to find
+/// what a finished task just reached; Anime mode celebrates it.
+class Milestones {
+  const Milestones({
+    required this.badges,
+    required this.streak,
+    required this.todayDone,
+    required this.todayTotal,
+  });
+
+  factory Milestones.of(PlannerStats stats) => Milestones(
+        badges: {for (final b in stats.badges) if (b.earned) b.badge.title},
+        streak: stats.currentStreak,
+        todayDone: stats.todayDone,
+        todayTotal: stats.todayTasks.length,
+      );
+
+  final Set<String> badges;
+  final int streak;
+  final int todayDone;
+  final int todayTotal;
+
+  /// What [after] reached that this didn't, the biggest first: a new badge,
+  /// then clearing today, then the streak growing. Null when nothing did.
+  Milestone? reachedBy(Milestones after) {
+    final unlocked = after.badges.difference(badges);
+    if (unlocked.isNotEmpty) return Milestone('Badge unlocked', unlocked.first);
+    final cleared = after.todayTotal > 0 && after.todayDone == after.todayTotal && todayDone < todayTotal;
+    if (cleared) {
+      return Milestone('Today', after.todayTotal == 1 ? 'Done for today.' : 'All ${after.todayTotal} done. Day cleared.');
+    }
+    if (after.streak > streak) {
+      return Milestone('Streak', after.streak == 1 ? 'Streak started.' : '${after.streak}-day streak.');
+    }
+    return null;
+  }
+}
+
+class Milestone {
+  const Milestone(this.kicker, this.headline);
+
+  final String kicker;
+  final String headline;
+}

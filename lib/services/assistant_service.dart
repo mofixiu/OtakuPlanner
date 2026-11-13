@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:otakuplanner/models/anime_character.dart';
 import 'package:otakuplanner/screens/request.dart' as api;
 
 /// One message in the conversation, as the backend expects it.
@@ -117,24 +118,27 @@ class AssistantService {
             ((path, body) => api.postWithTimeout(path, body, _timeout));
 
   /// Builds the request body. The phone's own date and time are sent so the
-  /// assistant plans around the user's day, not the server's.
+  /// assistant plans around the user's day, not the server's. In Anime mode
+  /// the character is sent too, and the assistant answers in their voice.
   static Map<String, dynamic> buildRequest(
     List<AssistantTurn> history,
-    DateTime now,
-  ) {
+    DateTime now, {
+    AnimeCharacter? persona,
+  }) {
     String two(int n) => n.toString().padLeft(2, '0');
     return {
       'messages': history.map((turn) => turn.toJson()).toList(),
       'today': '${now.year}-${two(now.month)}-${two(now.day)}',
       'now': '${two(now.hour)}:${two(now.minute)}',
+      if (persona != null) 'persona': {'name': persona.name, 'series': persona.series},
     };
   }
 
-  Future<AssistantReply> ask(List<AssistantTurn> history, {DateTime? now}) async {
+  Future<AssistantReply> ask(List<AssistantTurn> history, {DateTime? now, AnimeCharacter? persona}) async {
     try {
       final body = await _post(
         '/assistant/chat',
-        buildRequest(history, now ?? DateTime.now()),
+        buildRequest(history, now ?? DateTime.now(), persona: persona),
       );
       return AssistantReply.fromResponse(body);
     } on DioException catch (error) {

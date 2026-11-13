@@ -5,6 +5,8 @@ import 'package:otakuplanner/providers/category_provider.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
 import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
+import 'package:otakuplanner/models/anime_character.dart';
+import 'package:otakuplanner/screens/animeMode/character_picker.dart';
 import 'package:otakuplanner/screens/normalMode/editProfile.dart';
 import 'package:otakuplanner/screens/normalMode/profile.dart';
 import 'package:otakuplanner/screens/request.dart' show clearAuthToken;
@@ -12,8 +14,8 @@ import 'package:otakuplanner/widgets/bottomNavBar.dart';
 import 'package:otakuplanner/widgets/ink_kit.dart';
 import 'package:provider/provider.dart';
 
-/// Only settings that do something: the account, the page colour and
-/// logging out.
+/// Only settings that do something: the account, the mode, the page colour
+/// and logging out.
 class Settings extends StatefulWidget {
   const Settings({super.key});
 
@@ -26,6 +28,15 @@ class _SettingsState extends State<Settings> {
 
   void _open(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  /// Anime mode needs a character first; the picker applies it.
+  void _setMode(ThemeProvider themeProvider, PlannerMode mode) {
+    if (mode == PlannerMode.anime && themeProvider.character == null) {
+      _open(const CharacterPicker());
+      return;
+    }
+    themeProvider.setMode(mode);
   }
 
   /// Forgets the login token and everything loaded for this user, then
@@ -82,6 +93,32 @@ class _SettingsState extends State<Settings> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _PanelLabel('Appearance'),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Space.gutter, Space.xs, Space.gutter, Space.s),
+                  child: InkSegmented<PlannerMode>(
+                    segments: PlannerMode.values,
+                    selected: themeProvider.isAnime ? PlannerMode.anime : PlannerMode.normal,
+                    labelOf: (m) => m == PlannerMode.normal ? 'Normal' : 'Anime',
+                    onChanged: (m) => _setMode(themeProvider, m),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Space.gutter, 0, Space.gutter, Space.gutter),
+                  child: Text(
+                    themeProvider.isAnime
+                        ? "Your character's colours, lines and voice."
+                        : 'Navy ink with a vermilion stamp.',
+                    style: context.type.bodySmall,
+                  ),
+                ),
+                if (themeProvider.isAnime) ...[
+                  const InkRule(),
+                  _CharacterRow(
+                    character: themeProvider.character!,
+                    onTap: () => _open(const CharacterPicker()),
+                  ),
+                ],
+                const InkRule(),
                 _SwitchRow(
                   icon: dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
                   title: 'Dark mode',
@@ -179,6 +216,42 @@ class _AccountRow extends StatelessWidget {
                 ],
               ),
             ),
+            Icon(Icons.chevron_right, color: c.ink),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CharacterRow extends StatelessWidget {
+  const _CharacterRow({required this.character, required this.onTap});
+
+  final AnimeCharacter character;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ink;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(Space.gutter),
+        child: Row(
+          children: [
+            CharacterPortrait(character: character, width: 40, aspectRatio: 2 / 3),
+            const SizedBox(width: Space.gutter),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(character.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.type.titleMedium),
+                  if (character.series.isNotEmpty)
+                    Text(character.series, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.type.bodySmall),
+                ],
+              ),
+            ),
+            Text('Change', style: context.type.labelLarge?.copyWith(color: c.ink, fontWeight: FontWeight.w600)),
             Icon(Icons.chevron_right, color: c.ink),
           ],
         ),

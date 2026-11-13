@@ -100,7 +100,8 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
 
     Map<String, dynamic> answer;
     try {
-      final reply = await _assistant.ask(history);
+      // In Anime mode the assistant answers as the character.
+      final reply = await _assistant.ask(history, persona: speakingCharacter(context, listen: false));
       answer = {
         'text': reply.reply,
         'isUser': false,
@@ -510,7 +511,7 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: InkBackBar(
-          title: 'Assistant',
+          title: speakingCharacter(context)?.name ?? 'Assistant',
           actions: [
             if (_chatMessages.isNotEmpty)
               TextButton.icon(
@@ -540,7 +541,8 @@ class _OtakuPlannerAIPageState extends State<OtakuPlannerAIPage> {
   }
 }
 
-/// The mascot's face in an ink square, speaking for the assistant.
+/// The mascot's face in an ink square, speaking for the assistant. In Anime
+/// mode the character speaks instead.
 class _MascotAvatar extends StatelessWidget {
   const _MascotAvatar({required this.size});
 
@@ -548,6 +550,8 @@ class _MascotAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final character = speakingCharacter(context);
+    if (character != null) return CharacterPortrait(character: character, width: size);
     return Container(
       width: size,
       height: size,

@@ -5,6 +5,7 @@ library;
 
 export 'package:otakuplanner/shared/formats.dart';
 export 'package:otakuplanner/themes/tokens.dart';
+export 'package:otakuplanner/widgets/character_portrait.dart';
 export 'package:otakuplanner/widgets/field_grid.dart';
 export 'package:otakuplanner/widgets/focus_lines.dart';
 export 'package:otakuplanner/widgets/ink_button.dart';

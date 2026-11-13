@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
+import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/providers/user_provider.dart';
 import 'package:otakuplanner/screens/normalMode/achievements.dart';
 import 'package:otakuplanner/screens/normalMode/task_dialog2.dart';
@@ -98,7 +99,7 @@ class _DashboardState extends State<Dashboard> {
             const SizedBox(height: Space.m),
             _StatsRow(stats: stats),
             const SizedBox(height: Space.gutter),
-            _QuotePanel(quote: QuoteService.getQuote(now: stats.now)),
+            _QuotePanel(quote: Provider.of<ThemeProvider>(context).lineOfTheDay(stats.now)),
             const SizedBox(height: Space.gutter),
             _TodayPanel(
               stats: stats,

@@ -2,8 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:otakuplanner/models/task.dart';
 import 'package:otakuplanner/providers/task_provider.dart';
+import 'package:otakuplanner/providers/theme_provider.dart';
 import 'package:otakuplanner/shared/notifications.dart';
 import 'package:otakuplanner/shared/formats.dart';
+import 'package:otakuplanner/widgets/character_toast.dart';
+import 'package:provider/provider.dart';
 
 class InAppReminderService {
   static Timer? _timer;
@@ -107,8 +110,31 @@ class InAppReminderService {
     required String message,
     required Task task,
   }) {
-    // Shows the toast and adds it to the notifications list.
-    NotificationService.showToast(_context, title, message);
+    final theme = _themeProvider();
+    final character = theme != null && theme.isAnime ? theme.character : null;
+    if (theme == null || character == null) {
+      // Shows the toast and adds it to the notifications list.
+      NotificationService.showToast(_context, title, message);
+      return;
+    }
+    // Anime mode: the character reminds you, with one of their lines.
+    final line = theme.randomLine();
+    NotificationService.addGlobalNotification(
+      _context,
+      title,
+      line == null ? message : '$message. “${line.text}” ${line.character}',
+    );
+    CharacterToast.show(character: character, kicker: title, headline: message, line: line);
+  }
+
+  static ThemeProvider? _themeProvider() {
+    final context = _context;
+    if (context == null) return null;
+    try {
+      return Provider.of<ThemeProvider>(context, listen: false);
+    } catch (_) {
+      return null;
+    }
   }
   
   // Clean up old notification tracking to prevent memory leaks

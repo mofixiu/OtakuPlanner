@@ -9,10 +9,12 @@ export 'package:otakuplanner/themes/tokens.dart';
 class OtakuPlannerTheme {
   OtakuPlannerTheme._();
 
-  static final ThemeData lightTheme = _build(PlannerColors.light, Brightness.light);
-  static final ThemeData darkTheme = _build(PlannerColors.dark, Brightness.dark);
+  static final ThemeData lightTheme = build(PlannerColors.light, Brightness.light);
+  static final ThemeData darkTheme = build(PlannerColors.dark, Brightness.dark);
 
-  static ThemeData _build(PlannerColors c, Brightness brightness) {
+  /// A full theme from paper, ink and stamp. Anime mode builds one from a
+  /// character's colours.
+  static ThemeData build(PlannerColors c, Brightness brightness) {
     final ink = c.ink;
     final paper = c.paper;
     final text = TypeScale.textTheme(ink);
